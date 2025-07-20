@@ -38,7 +38,7 @@ Requires either Python 3.8+ with dependencies installed or Docker and Docker Com
 The training will start automatically and you'll see:
 - Real-time cart-pole simulation
 - Training metrics and episode rewards
-- Console logs in the Docker output
+- Live logging in the console output
 
 ## PPO Algorithm Details
 
