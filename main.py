@@ -27,7 +27,7 @@ def load_config():
             },
             'network': {'input_dim': 4, 'hidden_dim': 128, 'output_dim': 2},
             'ppo': {'learning_rate': 0.0003, 'discount_factor': 0.99, 'clip_ratio': 0.2, 'update_epochs': 4, 'update_frequency': 200},
-            'training': {'simulation_speed': 0.05, 'reward_history_length': 1000, 'episode_history_length': 100, 'model_save_path': 'models/ppo_cartpole.pth', 'save_frequency': 50},
+            'training': {'simulation_speed': 0.05, 'reward_history_length': 1000, 'episode_history_length': 100, 'model_save_path': 'models/ppo_cartpole.pth', 'save_frequency': 50, 'solved_reward_threshold': 195.0, 'solved_episodes_window': 100, 'stop_when_solved': True},
             'server': {'host': '0.0.0.0', 'port': 8080, 'debug': False},
             'logging': {'level': 'INFO', 'format': '%(asctime)s - %(message)s', 'episode_summary_frequency': 10, 'log_file': 'training.log'}
         }
@@ -301,7 +301,7 @@ class PPOAgent:
             logger.info(f"No existing model found at {filepath}. Starting training from scratch.")
             return None
 
-def training_loop(env, agent, simulation_speed, summary_frequency, update_frequency, model_save_path, save_frequency):
+def training_loop(env, agent, simulation_speed, summary_frequency, update_frequency, model_save_path, save_frequency, solved_threshold, solved_window, stop_when_solved):
     """
     Main training loop for PPO agent.
     
@@ -313,6 +313,9 @@ def training_loop(env, agent, simulation_speed, summary_frequency, update_freque
         update_frequency: Steps between PPO updates
         model_save_path: Path to save model checkpoints
         save_frequency: Episodes between model saves
+        solved_threshold: Average reward threshold to consider problem solved
+        solved_window: Number of consecutive episodes to average for solving criteria
+        stop_when_solved: Whether to stop training when the problem is solved
     """
     global current_state, reward_history, episode_rewards, running
     
@@ -322,6 +325,9 @@ def training_loop(env, agent, simulation_speed, summary_frequency, update_freque
     logger.info(f"  - Save frequency: {save_frequency} episodes")
     logger.info(f"  - Summary frequency: {summary_frequency} episodes")
     logger.info(f"  - Update frequency: {update_frequency} steps")
+    logger.info(f"  - Solved threshold: {solved_threshold} average reward")
+    logger.info(f"  - Solved window: {solved_window} episodes")
+    logger.info(f"  - Stop when solved: {stop_when_solved}")
     
     # Initialize training state
     episode = 0
@@ -408,6 +414,26 @@ def training_loop(env, agent, simulation_speed, summary_frequency, update_freque
             logger.info(f"Average reward (last 10 episodes): {np.mean(list(episode_rewards)[-10:]):.2f}")
             
             episode += 1
+            
+            # Check if the problem is solved
+            if stop_when_solved and len(episode_rewards) >= solved_window:
+                recent_avg = np.mean(list(episode_rewards)[-solved_window:])
+                if recent_avg >= solved_threshold:
+                    logger.info("="*60)
+                    logger.info("🎉 CART-POLE PROBLEM SOLVED! 🎉")
+                    logger.info(f"Average reward over last {solved_window} episodes: {recent_avg:.2f}")
+                    logger.info(f"Threshold: {solved_threshold}")
+                    logger.info(f"Total episodes completed: {episode}")
+                    logger.info(f"Total timesteps: {timestep}")
+                    logger.info("="*60)
+                    
+                    # Save the final solved model
+                    logger.info("Saving solved model...")
+                    save_training_state()
+                    
+                    # Set running to False to stop the training loop
+                    running = False
+                    break
             
             # More frequent saves early in training, less frequent later
             should_save = False
@@ -505,6 +531,9 @@ if __name__ == "__main__":
     logger.info(f"  - Model save path: {config['training']['model_save_path']}")
     logger.info(f"  - Learning rate: {config['ppo']['learning_rate']}")
     logger.info(f"  - Update frequency: {config['ppo']['update_frequency']} steps")
+    logger.info(f"  - Solved threshold: {config['training']['solved_reward_threshold']} average reward")
+    logger.info(f"  - Solved window: {config['training']['solved_episodes_window']} episodes")
+    logger.info(f"  - Stop when solved: {config['training']['stop_when_solved']}")
     
     # Initialize environment and agent
     env = CartPoleEnv(config)
@@ -517,7 +546,7 @@ if __name__ == "__main__":
     # Start training in a separate thread
     training_thread = threading.Thread(
         target=training_loop, 
-        args=(env, agent, config['training']['simulation_speed'], config['logging']['episode_summary_frequency'], config['ppo']['update_frequency'], model_save_path, save_frequency),
+        args=(env, agent, config['training']['simulation_speed'], config['logging']['episode_summary_frequency'], config['ppo']['update_frequency'], model_save_path, save_frequency, config['training']['solved_reward_threshold'], config['training']['solved_episodes_window'], config['training']['stop_when_solved']),
         daemon=False  # Don't make it a daemon so it can run properly
     )
     training_thread.start()
