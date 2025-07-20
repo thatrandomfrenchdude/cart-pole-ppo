@@ -49,6 +49,16 @@ h3 {
     box-sizing: border-box;
 }
 
+.info-item.training-metric {
+    border-left: 3px solid #e74c3c;
+    background-color: #fdf2f2;
+}
+
+.info-item.training-metric label {
+    color: #c0392b;
+    font-weight: 700;
+}
+
 .info-item label {
     font-weight: 600;
     color: #2c3e50;

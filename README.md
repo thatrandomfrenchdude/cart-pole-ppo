@@ -98,6 +98,8 @@ The training will start automatically and you'll see:
 - Y-axis scales automatically based on performance range
 
 ### Metrics Panel
+- **Episode**: Current episode number (highlighted in red)
+- **Timestep**: Total timesteps completed (highlighted in red)
 - **Position**: Cart's horizontal position (-∞ to +∞)
 - **Velocity**: Cart's horizontal velocity
 - **Angle**: Pole's angle from vertical (radians)

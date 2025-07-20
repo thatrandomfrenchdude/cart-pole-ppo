@@ -56,7 +56,7 @@ def setup_logging(config):
     return log_file
 
 # Global variables for Flask endpoints
-current_state = {"position": 0, "velocity": 0, "angle": 0, "angular_velocity": 0, "reward": 0}
+current_state = {"position": 0, "velocity": 0, "angle": 0, "angular_velocity": 0, "reward": 0, "episode": 0, "timestep": 0}
 reward_history = deque(maxlen=1000)  # Default maxlen, will be updated in main
 episode_rewards = deque(maxlen=100)  # Default maxlen, will be updated in main
 running = True
@@ -297,16 +297,6 @@ class PPOAgent:
             logger.info(f"No existing model found at {filepath}. Starting training from scratch.")
             return None
 
-# Global variables for Flask endpoints
-current_state = {"position": 0, "velocity": 0, "angle": 0, "angular_velocity": 0, "reward": 0}
-reward_history = deque(maxlen=1000)  # Default maxlen, will be updated in main
-episode_rewards = deque(maxlen=100)  # Default maxlen, will be updated in main
-running = True
-
-# Initialize logger with default settings, will be reconfigured in main
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
-logger = logging.getLogger(__name__)
-
 def training_loop(env, agent, simulation_speed, summary_frequency, update_frequency, model_save_path, save_frequency):
     """
     Main training loop for PPO agent.
@@ -384,7 +374,9 @@ def training_loop(env, agent, simulation_speed, summary_frequency, update_freque
                     "velocity": float(next_state[1]),
                     "angle": float(next_state[2]),
                     "angular_velocity": float(next_state[3]),
-                    "reward": float(reward)
+                    "reward": float(reward),
+                    "episode": episode + 1,  # Display current episode (1-indexed)
+                    "timestep": timestep
                 }
                 
                 episode_reward += reward

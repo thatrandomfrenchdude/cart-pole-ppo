@@ -10,10 +10,20 @@ class CartPoleVisualizer {
         
         this.resizeCanvases();
         this.initializeCanvases();
+        this.setupTrainingMetrics();
         this.startPolling();
         
         // Add resize listener
         window.addEventListener('resize', () => this.resizeCanvases());
+    }
+    
+    setupTrainingMetrics() {
+        // Add special styling to episode and timestep metrics
+        const episodeItem = document.getElementById('episode').closest('.info-item');
+        const timestepItem = document.getElementById('timestep').closest('.info-item');
+        
+        if (episodeItem) episodeItem.classList.add('training-metric');
+        if (timestepItem) timestepItem.classList.add('training-metric');
     }
     
     resizeCanvases() {
@@ -197,6 +207,8 @@ class CartPoleVisualizer {
     
     updateDisplay(data) {
         // Update info panel
+        document.getElementById('episode').textContent = data.episode || 0;
+        document.getElementById('timestep').textContent = data.timestep || 0;
         document.getElementById('position').textContent = data.position.toFixed(3);
         document.getElementById('velocity').textContent = data.velocity.toFixed(3);
         document.getElementById('angle').textContent = (data.angle * 180 / Math.PI).toFixed(1) + '°';
