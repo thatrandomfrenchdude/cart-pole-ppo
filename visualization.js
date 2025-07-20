@@ -8,8 +8,31 @@ class CartPoleVisualizer {
         this.rewardHistory = [];
         this.maxRewards = 100;
         
+        this.resizeCanvases();
         this.initializeCanvases();
         this.startPolling();
+        
+        // Add resize listener
+        window.addEventListener('resize', () => this.resizeCanvases());
+    }
+    
+    resizeCanvases() {
+        // Get the container width
+        const cartpoleContainer = this.cartpoleCanvas.parentElement;
+        const rewardContainer = this.rewardCanvas.parentElement;
+        
+        const containerWidth = cartpoleContainer.offsetWidth - 40; // Account for padding
+        
+        // Resize cartpole canvas
+        this.cartpoleCanvas.width = containerWidth;
+        this.cartpoleCanvas.height = 300;
+        
+        // Resize reward canvas  
+        this.rewardCanvas.width = containerWidth;
+        this.rewardCanvas.height = 200;
+        
+        // Reinitialize after resize
+        this.initializeCanvases();
     }
     
     initializeCanvases() {

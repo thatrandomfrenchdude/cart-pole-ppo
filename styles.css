@@ -44,6 +44,9 @@ h3 {
     background-color: white;
     border-radius: 4px;
     border-left: 3px solid #3498db;
+    min-width: 200px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .info-item label {
@@ -55,6 +58,8 @@ h3 {
     font-family: 'Courier New', monospace;
     color: #27ae60;
     font-weight: 500;
+    min-width: 80px;
+    text-align: right;
 }
 
 .visualization-panel {
@@ -76,6 +81,9 @@ canvas {
     border: 1px solid #34495e;
     border-radius: 4px;
     background-color: white;
+    max-width: 100%;
+    width: 100%;
+    height: auto;
 }
 
 .status {
@@ -103,10 +111,5 @@ canvas {
     
     .info-panel {
         grid-template-columns: 1fr;
-    }
-    
-    canvas {
-        max-width: 100%;
-        height: auto;
     }
 }
