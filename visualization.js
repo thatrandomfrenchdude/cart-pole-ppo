@@ -132,6 +132,25 @@ class CartPoleVisualizer {
         ctx.fillText(`Angle: ${(state.angle * 180 / Math.PI).toFixed(1)}°`, poleEndX, poleEndY - 15);
     }
     
+    calculateSlope(rewards) {
+        if (rewards.length < 2) return { slope: 0, intercept: 0 };
+        
+        const n = rewards.length;
+        let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+        
+        for (let i = 0; i < n; i++) {
+            sumX += i;
+            sumY += rewards[i];
+            sumXY += i * rewards[i];
+            sumX2 += i * i;
+        }
+        
+        const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+        const intercept = (sumY - slope * sumX) / n;
+        
+        return { slope, intercept };
+    }
+    
     drawRewardChart(rewards) {
         const ctx = this.rewardCtx;
         const canvas = this.rewardCanvas;
@@ -185,6 +204,33 @@ class CartPoleVisualizer {
                 ctx.arc(x, y, 2, 0, 2 * Math.PI);
                 ctx.fill();
             }
+            
+            // Calculate and draw trend line (slope)
+            const trendData = this.calculateSlope(rewards);
+            if (rewards.length >= 2) {
+                ctx.strokeStyle = '#ff69b4'; // Pink color
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]); // Dotted line
+                ctx.beginPath();
+                
+                // Calculate trend line endpoints
+                const startX = 40;
+                const endX = 40 + (rewards.length - 1) * stepX;
+                const startY = canvas.height - 30 - ((trendData.intercept - minReward) / rewardRange) * (canvas.height - 40);
+                const endY = canvas.height - 30 - (((trendData.slope * (rewards.length - 1) + trendData.intercept) - minReward) / rewardRange) * (canvas.height - 40);
+                
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(endX, endY);
+                ctx.stroke();
+                ctx.setLineDash([]); // Reset line dash
+                
+                // Display slope value
+                ctx.fillStyle = '#ff69b4';
+                ctx.font = '11px Arial';
+                ctx.textAlign = 'left';
+                const slopeText = `Trend: ${trendData.slope.toFixed(4)}`;
+                ctx.fillText(slopeText, canvas.width - 120, 20);
+            }
         }
         
         // Draw labels
@@ -223,6 +269,14 @@ class CartPoleVisualizer {
         if (historyData.rewards && historyData.rewards.length > 0) {
             this.rewardHistory = historyData.rewards.slice(-this.maxRewards);
             this.drawRewardChart(this.rewardHistory);
+            
+            // Update slope display in info panel
+            if (this.rewardHistory.length >= 2) {
+                const trendData = this.calculateSlope(this.rewardHistory);
+                document.getElementById('reward-trend').textContent = trendData.slope.toFixed(4);
+            } else {
+                document.getElementById('reward-trend').textContent = '0.000';
+            }
         }
         
         if (historyData.avg_reward !== undefined) {
