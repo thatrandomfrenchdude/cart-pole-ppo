@@ -9,26 +9,53 @@ import time
 from collections import deque
 import logging
 import math
+import yaml
+import os
 
-# Set up logging
+# Load configuration
+def load_config():
+    config_path = 'config.yaml'
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as f:
+            return yaml.safe_load(f)
+    else:
+        # Default configuration if file doesn't exist
+        return {
+            'environment': {
+                'gravity': 9.8, 'cart_mass': 1.0, 'pole_mass': 0.1, 'pole_half_length': 0.5,
+                'force_magnitude': 10.0, 'time_step': 0.02, 'position_threshold': 2.4, 'angle_threshold_degrees': 12
+            },
+            'network': {'input_dim': 4, 'hidden_dim': 128, 'output_dim': 2},
+            'ppo': {'learning_rate': 0.0003, 'discount_factor': 0.99, 'clip_ratio': 0.2, 'update_epochs': 4, 'update_frequency': 200},
+            'training': {'simulation_speed': 0.05, 'reward_history_length': 1000, 'episode_history_length': 100},
+            'server': {'host': '0.0.0.0', 'port': 8080, 'debug': False},
+            'logging': {'level': 'INFO', 'format': '%(asctime)s - %(message)s', 'episode_summary_frequency': 10}
+        }
+
+# Global variables for Flask endpoints
+current_state = {"position": 0, "velocity": 0, "angle": 0, "angular_velocity": 0, "reward": 0}
+reward_history = deque(maxlen=1000)  # Default maxlen, will be updated in main
+episode_rewards = deque(maxlen=100)  # Default maxlen, will be updated in main
+running = True
+
+# Initialize logger with default settings, will be reconfigured in main
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
-
-# Simple Cart-Pole Environment Implementation
 class CartPoleEnv:
-    def __init__(self):
-        self.gravity = 9.8
-        self.masscart = 1.0
-        self.masspole = 0.1
+    def __init__(self, config):
+        env_config = config['environment']
+        self.gravity = env_config['gravity']
+        self.masscart = env_config['cart_mass']
+        self.masspole = env_config['pole_mass']
         self.total_mass = self.masspole + self.masscart
-        self.length = 0.5  # actually half the pole's length
+        self.length = env_config['pole_half_length']  # actually half the pole's length
         self.polemass_length = self.masspole * self.length
-        self.force_mag = 10.0
-        self.tau = 0.02  # seconds between state updates
+        self.force_mag = env_config['force_magnitude']
+        self.tau = env_config['time_step']  # seconds between state updates
         
         # Angle at which to fail the episode
-        self.theta_threshold_radians = 12 * 2 * math.pi / 360
-        self.x_threshold = 2.4
+        self.theta_threshold_radians = env_config['angle_threshold_degrees'] * 2 * math.pi / 360
+        self.x_threshold = env_config['position_threshold']
         
         self.reset()
     
@@ -67,8 +94,13 @@ class CartPoleEnv:
         return self.state, reward, done
 
 class PPONetwork(nn.Module):
-    def __init__(self, input_dim=4, hidden_dim=128, output_dim=2):
+    def __init__(self, config):
         super(PPONetwork, self).__init__()
+        net_config = config['network']
+        input_dim = net_config['input_dim']
+        hidden_dim = net_config['hidden_dim']
+        output_dim = net_config['output_dim']
+        
         self.shared = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),
@@ -85,12 +117,13 @@ class PPONetwork(nn.Module):
         return action_probs, state_value
 
 class PPOAgent:
-    def __init__(self, lr=3e-4, gamma=0.99, eps_clip=0.2, k_epochs=4):
-        self.network = PPONetwork()
-        self.optimizer = optim.Adam(self.network.parameters(), lr=lr)
-        self.gamma = gamma
-        self.eps_clip = eps_clip
-        self.k_epochs = k_epochs
+    def __init__(self, config):
+        ppo_config = config['ppo']
+        self.network = PPONetwork(config)
+        self.optimizer = optim.Adam(self.network.parameters(), lr=ppo_config['learning_rate'])
+        self.gamma = ppo_config['discount_factor']
+        self.eps_clip = ppo_config['clip_ratio']
+        self.k_epochs = ppo_config['update_epochs']
         
         self.states = []
         self.actions = []
@@ -179,18 +212,19 @@ class PPOAgent:
 
 # Global variables for Flask endpoints
 current_state = {"position": 0, "velocity": 0, "angle": 0, "angular_velocity": 0, "reward": 0}
-reward_history = deque(maxlen=1000)
-episode_rewards = deque(maxlen=100)
+reward_history = deque(maxlen=1000)  # Default maxlen, will be updated in main
+episode_rewards = deque(maxlen=100)  # Default maxlen, will be updated in main
 running = True
 
-def training_loop():
-    global current_state, reward_history, episode_rewards, running
-    
-    env = CartPoleEnv()
-    agent = PPOAgent()
+# Initialize logger with default settings, will be reconfigured in main
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+def training_loop(env, agent, simulation_speed, summary_frequency, update_frequency):
+    global current_state, current_reward, episode_rewards, reward_history
     
     episode = 0
-    update_timestep = 200
+    update_timestep = update_frequency
     timestep = 0
     
     while running:
@@ -227,7 +261,7 @@ def training_loop():
                 agent.update()
                 logger.info(f"PPO update completed at timestep {timestep}")
             
-            time.sleep(0.05)  # Control simulation speed
+            time.sleep(simulation_speed)  # Control simulation speed
         
         reward_history.append(episode_reward)
         episode_rewards.append(episode_reward)
@@ -237,7 +271,7 @@ def training_loop():
         
         episode += 1
         
-        if episode % 10 == 0:
+        if episode % summary_frequency == 0:
             logger.info(f"Completed {episode} episodes. Recent average: {np.mean(list(episode_rewards)[-10:]):.2f}")
 
 # Flask app
@@ -270,11 +304,36 @@ def get_history():
     })
 
 if __name__ == "__main__":
+    # Load configuration
+    config = load_config()
+    
+    # Update global deque sizes with config settings
+    reward_history.clear()
+    reward_history = deque(reward_history, maxlen=config['training']['reward_history_length'])
+    episode_rewards.clear()
+    episode_rewards = deque(episode_rewards, maxlen=config['training']['episode_history_length'])
+    
+    # Reconfigure logging with config settings
+    logging.basicConfig(
+        level=getattr(logging, config['logging']['level']), 
+        format=config['logging']['format'],
+        force=True
+    )
+    logger.info("Configuration loaded successfully")
+    
+    # Initialize environment and agent
+    env = CartPoleEnv(config)
+    agent = PPOAgent(config)
+    
     # Start training in a separate thread
-    training_thread = threading.Thread(target=training_loop, daemon=True)
+    training_thread = threading.Thread(
+        target=training_loop, 
+        args=(env, agent, config['training']['simulation_speed'], config['logging']['episode_summary_frequency'], config['ppo']['update_frequency']),
+        daemon=True
+    )
     training_thread.start()
     
     logger.info("Starting PPO Cart-Pole training and Flask server...")
-    logger.info("Access the visualization at http://localhost:8080")
+    logger.info(f"Access the visualization at http://{config['server']['host']}:{config['server']['port']}")
     
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    app.run(host=config['server']['host'], port=config['server']['port'], debug=config['server']['debug'])

@@ -6,4 +6,4 @@ services:
     working_dir: /app
     ports:
       - "8080:8080"
-    command: sh -c "pip install torch numpy flask && python main.py"
+    command: sh -c "pip install torch numpy flask pyyaml && python main.py"

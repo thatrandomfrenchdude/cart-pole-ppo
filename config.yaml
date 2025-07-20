@@ -1,0 +1,45 @@
+# Cart-Pole PPO Configuration
+# All modifiable hyperparameters for the reinforcement learning system
+
+# Environment Physics Parameters
+environment:
+  gravity: 9.8                          # Gravitational acceleration (m/s^2)
+  cart_mass: 1.0                        # Mass of the cart (kg)
+  pole_mass: 0.1                        # Mass of the pole (kg)
+  pole_half_length: 0.5                 # Half length of the pole (m)
+  force_magnitude: 10.0                 # Magnitude of force applied to cart (N)
+  time_step: 0.02                       # Time between state updates (seconds)
+  position_threshold: 2.4               # Cart position limit (m)
+  angle_threshold_degrees: 12           # Pole angle limit (degrees)
+
+# Neural Network Architecture
+network:
+  input_dim: 4                          # Input dimension (cart pos, vel, pole angle, angular vel)
+  hidden_dim: 128                       # Hidden layer size
+  output_dim: 2                         # Output dimension (left/right actions)
+
+# PPO Algorithm Parameters
+ppo:
+  learning_rate: 0.0003                 # Learning rate for optimizer
+  discount_factor: 0.99                 # Gamma - reward discount factor
+  clip_ratio: 0.2                       # Epsilon - PPO clipping ratio
+  update_epochs: 4                      # Number of epochs per PPO update
+  update_frequency: 200                 # Steps between PPO updates
+
+# Training Configuration
+training:
+  simulation_speed: 0.05                # Sleep time between steps (seconds)
+  reward_history_length: 1000           # Maximum reward history to keep
+  episode_history_length: 100           # Episodes for running average calculation
+
+# Web Server Configuration  
+server:
+  host: "0.0.0.0"                       # Host address
+  port: 8080                            # Port number
+  debug: false                          # Flask debug mode
+
+# Logging Configuration
+logging:
+  level: "INFO"                         # Logging level
+  format: "%(asctime)s - %(message)s"   # Log message format
+  episode_summary_frequency: 10         # Episodes between summary logs
