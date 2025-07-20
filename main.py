@@ -233,8 +233,8 @@ class PPOAgent:
         self.values = []
         self.dones = []
     
-    def save_model(self, filepath):
-        """Save the model state dict and optimizer state."""
+    def save_model(self, filepath, training_state=None):
+        """Save the model state dict, optimizer state, and training progress."""
         try:
             # Create directory if it doesn't exist
             directory = os.path.dirname(filepath)
@@ -248,8 +248,15 @@ class PPOAgent:
                 'eps_clip': self.eps_clip,
                 'k_epochs': self.k_epochs
             }
+            
+            # Add training state if provided
+            if training_state:
+                checkpoint.update(training_state)
+            
             torch.save(checkpoint, filepath)
             logger.info(f"Model successfully saved to {filepath}")
+            if training_state:
+                logger.info(f"Training state saved - Episode: {training_state.get('episode', 'N/A')}, Timestep: {training_state.get('timestep', 'N/A')}")
         except Exception as e:
             logger.error(f"Failed to save model to {filepath}: {str(e)}")
             # Try to save to current directory as fallback
@@ -261,7 +268,7 @@ class PPOAgent:
                 logger.error(f"Failed to save to fallback location: {str(e2)}")
     
     def load_model(self, filepath):
-        """Load the model state dict and optimizer state."""
+        """Load the model state dict, optimizer state, and training progress."""
         if os.path.exists(filepath):
             checkpoint = torch.load(filepath, map_location='cpu')
             self.network.load_state_dict(checkpoint['network_state_dict'])
@@ -273,10 +280,22 @@ class PPOAgent:
             self.k_epochs = checkpoint.get('k_epochs', self.k_epochs)
             
             logger.info(f"Model loaded from {filepath}")
-            return True
+            
+            # Return training state if it exists
+            training_state = {
+                'episode': checkpoint.get('episode', 0),
+                'timestep': checkpoint.get('timestep', 0),
+                'reward_history': checkpoint.get('reward_history', []),
+                'episode_rewards': checkpoint.get('episode_rewards', [])
+            }
+            
+            if training_state['episode'] > 0:
+                logger.info(f"Training state restored - Episode: {training_state['episode']}, Timestep: {training_state['timestep']}")
+            
+            return training_state
         else:
             logger.info(f"No existing model found at {filepath}. Starting training from scratch.")
-            return False
+            return None
 
 # Global variables for Flask endpoints
 current_state = {"position": 0, "velocity": 0, "angle": 0, "angular_velocity": 0, "reward": 0}
@@ -301,7 +320,7 @@ def training_loop(env, agent, simulation_speed, summary_frequency, update_freque
         model_save_path: Path to save model checkpoints
         save_frequency: Episodes between model saves
     """
-    global current_state, current_reward, episode_rewards, reward_history
+    global current_state, reward_history, episode_rewards, running
     
     # Debug logging for parameters
     logger.info(f"Training loop started with parameters:")
@@ -310,65 +329,115 @@ def training_loop(env, agent, simulation_speed, summary_frequency, update_freque
     logger.info(f"  - Summary frequency: {summary_frequency} episodes")
     logger.info(f"  - Update frequency: {update_frequency} steps")
     
+    # Initialize training state
     episode = 0
-    update_timestep = update_frequency
     timestep = 0
+    update_timestep = update_frequency
     
-    while running:
-        state = env.reset()
-        episode_reward = 0
-        done = False
-        
-        logger.info(f"Starting Episode {episode + 1}")
-        
-        while not done and running:
-            action, log_prob, value = agent.select_action(state)
-            next_state, reward, done = env.step(action)
+    # Try to load existing training state
+    try:
+        training_state = agent.load_model(model_save_path)
+        if training_state and training_state['episode'] > 0:
+            episode = training_state['episode']
+            timestep = training_state['timestep']
             
-            agent.store_transition(state, action, reward, log_prob, value, done)
-            
-            # Update current state for visualization
-            current_state = {
-                "position": float(next_state[0]),
-                "velocity": float(next_state[1]),
-                "angle": float(next_state[2]),
-                "angular_velocity": float(next_state[3]),
-                "reward": float(reward)
-            }
-            
-            episode_reward += reward
-            state = next_state
-            timestep += 1
-            
-            # Log current state
-            logger.info(f"Step {timestep}: Pos={next_state[0]:.3f}, Angle={next_state[2]:.3f}, Reward={reward}")
-            
-            # Update policy
-            if timestep % update_timestep == 0:
-                agent.update()
-                logger.info(f"PPO update completed at timestep {timestep}")
-            
-            time.sleep(simulation_speed)  # Control simulation speed
-        
-        reward_history.append(episode_reward)
-        episode_rewards.append(episode_reward)
-        
-        logger.info(f"Episode {episode + 1} finished with reward: {episode_reward}")
-        logger.info(f"Average reward (last 10 episodes): {np.mean(list(episode_rewards)[-10:]):.2f}")
-        
-        episode += 1
-        
-        # Save model periodically
-        if episode % save_frequency == 0:
-            logger.info(f"Reached save frequency trigger: Episode {episode}, Save frequency: {save_frequency}")
-            agent.save_model(model_save_path)
-        
-        if episode % summary_frequency == 0:
-            logger.info(f"Completed {episode} episodes. Recent average: {np.mean(list(episode_rewards)[-10:]):.2f}")
+            # Restore reward histories if available
+            if training_state['reward_history']:
+                reward_history.extend(training_state['reward_history'])
+            if training_state['episode_rewards']:
+                episode_rewards.extend(training_state['episode_rewards'])
+                
+            logger.info(f"Resuming training from episode {episode + 1}, timestep {timestep}")
+        else:
+            logger.info("Starting fresh training session")
+    except Exception as e:
+        logger.error(f"Failed to load model: {e}")
+        logger.info("Starting fresh training session")
     
-    # Save final model when training loop ends
-    logger.info("Training loop ended. Saving final model...")
-    agent.save_model(model_save_path)
+    def save_training_state():
+        """Helper function to save current training state."""
+        training_state = {
+            'episode': episode,
+            'timestep': timestep,
+            'reward_history': list(reward_history),
+            'episode_rewards': list(episode_rewards)
+        }
+        agent.save_model(model_save_path, training_state)
+    
+    try:
+        while running:
+            state = env.reset()
+            episode_reward = 0
+            done = False
+            
+            logger.info(f"Starting Episode {episode + 1}")
+            
+            while not done and running:
+                action, log_prob, value = agent.select_action(state)
+                next_state, reward, done = env.step(action)
+                
+                agent.store_transition(state, action, reward, log_prob, value, done)
+                
+                # Update current state for visualization
+                current_state = {
+                    "position": float(next_state[0]),
+                    "velocity": float(next_state[1]),
+                    "angle": float(next_state[2]),
+                    "angular_velocity": float(next_state[3]),
+                    "reward": float(reward)
+                }
+                
+                episode_reward += reward
+                state = next_state
+                timestep += 1
+                
+                # Log current state (reduce frequency for performance)
+                if timestep % 10 == 0 or done:
+                    logger.info(f"Step {timestep}: Pos={next_state[0]:.3f}, Angle={next_state[2]:.3f}, Reward={reward}")
+                
+                # Update policy
+                if timestep % update_timestep == 0:
+                    agent.update()
+                    logger.info(f"PPO update completed at timestep {timestep}")
+                
+                time.sleep(simulation_speed)  # Control simulation speed
+            
+            if not running:  # Training was interrupted
+                break
+                
+            reward_history.append(episode_reward)
+            episode_rewards.append(episode_reward)
+            
+            logger.info(f"Episode {episode + 1} finished with reward: {episode_reward}")
+            logger.info(f"Average reward (last 10 episodes): {np.mean(list(episode_rewards)[-10:]):.2f}")
+            
+            episode += 1
+            
+            # More frequent saves early in training, less frequent later
+            should_save = False
+            if episode <= 10:  # First 10 episodes - save every episode
+                should_save = True
+            elif episode <= 50:  # Episodes 11-50 - save every 5 episodes
+                should_save = (episode % 5 == 0)
+            else:  # After episode 50 - save every save_frequency episodes
+                should_save = (episode % save_frequency == 0)
+            
+            if should_save:
+                logger.info(f"Auto-saving at episode {episode}")
+                save_training_state()
+            
+            if episode % summary_frequency == 0:
+                logger.info(f"Completed {episode} episodes. Recent average: {np.mean(list(episode_rewards)[-10:]):.2f}")
+        
+    except Exception as e:
+        logger.error(f"Error in training loop: {e}")
+        logger.info("Saving training state before exit...")
+        save_training_state()
+        raise
+    finally:
+        # Always save final model when training loop ends
+        logger.info("Training loop ending. Saving final state...")
+        save_training_state()
 
 # Flask app
 app = Flask(__name__)
@@ -428,21 +497,16 @@ if __name__ == "__main__":
     env = CartPoleEnv(config)
     agent = PPOAgent(config)
     
-    # Try to load existing model if it exists
+    # Model loading is now handled within the training loop
     model_save_path = config['training']['model_save_path']
     save_frequency = config['training']['save_frequency']
     logger.info(f"Model save configuration: path='{model_save_path}', frequency={save_frequency}")
-    
-    if agent.load_model(model_save_path):
-        logger.info("Resuming training from saved model")
-    else:
-        logger.info("Starting training with new model")
     
     # Start training in a separate thread
     training_thread = threading.Thread(
         target=training_loop, 
         args=(env, agent, config['training']['simulation_speed'], config['logging']['episode_summary_frequency'], config['ppo']['update_frequency'], model_save_path, save_frequency),
-        daemon=True
+        daemon=False  # Don't make it a daemon so it can run properly
     )
     training_thread.start()
     
@@ -451,12 +515,17 @@ if __name__ == "__main__":
     logger.info("="*60)
     
     try:
-        app.run(host=config['server']['host'], port=config['server']['port'], debug=config['server']['debug'])
+        app.run(host=config['server']['host'], port=config['server']['port'], debug=config['server']['debug'], threaded=True)
     except KeyboardInterrupt:
         logger.info("Training interrupted by user")
+        running = False  # Signal the training thread to stop
+        training_thread.join(timeout=5)  # Wait for training thread to finish
     except Exception as e:
         logger.error(f"Application error: {str(e)}")
+        running = False
+        training_thread.join(timeout=5)
     finally:
+        running = False
         logger.info("="*60)
         logger.info("PPO Cart-Pole Training Session Ended")
         logger.info("="*60)

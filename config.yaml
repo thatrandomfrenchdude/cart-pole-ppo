@@ -32,7 +32,7 @@ training:
   reward_history_length: 1000           # Maximum reward history to keep
   episode_history_length: 100           # Episodes for running average calculation
   model_save_path: "models/ppo_cartpole.pth"  # Path to save/load the trained model
-  save_frequency: 50                    # Save model every N episodes
+  save_frequency: 50                    # Save model every N episodes (Note: Auto-saves are more frequent early in training)
 
 # Web Server Configuration  
 server:

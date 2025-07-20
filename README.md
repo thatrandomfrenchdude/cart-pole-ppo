@@ -8,10 +8,15 @@
 - **Model Save/Load**: Automatic saving and loading of trained models to resume training
 
 ### Model Persistence
-- **Automatic Saving**: Models are saved every 50 episodes by default
-- **Resume Training**: Automatically loads existing models when restarting the application
+- **Intelligent Auto-Saving**: Models are automatically saved with adaptive frequency:
+  - Every episode for the first 10 episodes
+  - Every 5 episodes for episodes 11-50
+  - Every 50 episodes (configurable) thereafter
+- **Complete State Restoration**: Automatically loads existing models and resumes training exactly where it left off
+- **Training State Persistence**: Saves and restores episode count, timestep count, and reward histories
+- **Graceful Interruption Handling**: Always saves current state when training is interrupted (Ctrl+C)
 - **Configurable Path**: Model save location can be customized in `config.yaml`
-- **Checkpoint Data**: Saves both model weights and optimizer state for seamless resumption
+- **Comprehensive Checkpoints**: Saves model weights, optimizer state, hyperparameters, and training progress
 
 ### Logging System
 - **Dual Output**: Logs are written to both console and file simultaneously
@@ -167,11 +172,34 @@ logging:
 ```
 
 ### Resume Training
-The application automatically:
-1. Checks for an existing model at the configured path
-2. Loads the model if found and continues training
-3. Creates a new model if no saved model exists
-4. Saves checkpoints periodically during training
+The application now features robust training resumption:
+
+#### Automatic Resume
+1. **Smart Detection**: Automatically detects and loads existing models at startup
+2. **Complete State Restoration**: Restores episode count, timestep count, reward histories, and neural network state
+3. **Seamless Continuation**: Training continues exactly where it left off with no data loss
+4. **Progress Preservation**: All training metrics and learning progress are maintained
+
+#### Interruption Recovery
+- **Graceful Shutdown**: Press Ctrl+C to safely interrupt training - the current state is automatically saved
+- **No Progress Loss**: Even sudden interruptions are handled - auto-saves occur frequently during early training
+- **Immediate Resume**: Simply restart the application to continue from the last save point
+
+#### Save Frequency
+The system uses intelligent saving patterns:
+- **Episodes 1-10**: Saved after every episode (maximum safety)
+- **Episodes 11-50**: Saved every 5 episodes  
+- **Episodes 50+**: Saved every 50 episodes (configurable)
+- **On Interrupt**: Always saves immediately when stopping
+
+#### Training State Details
+Saved state includes:
+- Neural network weights and biases
+- Optimizer state (learning rates, momentum, etc.)
+- Current episode and timestep counters
+- Complete reward history for visualization
+- Episode reward averages for progress tracking
+- All hyperparameters for consistency
 
 ### Log Files
 Training sessions generate detailed log files:
@@ -188,10 +216,14 @@ Example log content:
 2025-01-01 10:00:00,002 - ============================================================
 2025-01-01 10:00:00,003 - Configuration loaded successfully
 2025-01-01 10:00:00,004 - Logging to file: training.log (overwrite mode)
-2025-01-01 10:00:01,000 - Starting Episode 1
-2025-01-01 10:00:05,000 - Episode 1 finished with reward: 23.0
-2025-01-01 10:00:15,000 - Reached save frequency trigger: Episode 50, Save frequency: 50
-2025-01-01 10:00:15,001 - Model successfully saved to models/ppo_cartpole.pth
+2025-01-01 10:00:01,000 - Model loaded from models/ppo_cartpole.pth
+2025-01-01 10:00:01,001 - Training state restored - Episode: 15, Timestep: 342
+2025-01-01 10:00:01,002 - Resuming training from episode 16, timestep 342
+2025-01-01 10:00:01,003 - Starting Episode 16
+2025-01-01 10:00:05,000 - Episode 16 finished with reward: 23.0
+2025-01-01 10:00:05,001 - Auto-saving at episode 16
+2025-01-01 10:00:05,002 - Model successfully saved to models/ppo_cartpole.pth
+2025-01-01 10:00:05,003 - Training state saved - Episode: 16, Timestep: 365
 ```
 
 ### Modify Hyperparameters
