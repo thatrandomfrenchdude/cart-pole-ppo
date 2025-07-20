@@ -3,8 +3,6 @@
 This project demonstrates a complete reinforcement learning pipeline for the cart-pole balancing problem using Proximal Policy Optimization (PPO). It includes a custom cart-pole environment, a PPO agent implemented in PyTorch, and a web-based visualization interface to observe training progress in real-time.
 
 ## Table of Contents
-- [Architecture](#architecture)
-- [Features](#features)
 - [Quick Start](#quick-start)
 - [Researcher Notes](#researcher-notes)
    - [PPO Algorithm Details](#ppo-algorithm-details)
@@ -12,6 +10,7 @@ This project demonstrates a complete reinforcement learning pipeline for the car
 - [Developer Notes](#developer-notes)
    - [Technical Implementation](#technical-implementation)
    - [Project Layout](#project-layout)
+   - [Testing](#testing)
 - [License](#license)
 
 ## Quick Start
@@ -28,48 +27,44 @@ training:
 ### Prerequisites
 Requires either Python 3.8+ with dependencies installed or Docker and Docker Compose. Use the appropriate method in the run instructions below.
 
-### Run the Application
+### Setup
 1. Clone this repository:
    ```bash
    git clone https://github.com/thatrandomfrenchdude/cart-pole-ppo.git
    cd cart-pole-ppo
    ```
-2. Start the application:
+2. Configure the environment:
    ```bash
    # python
    python -m venv venv
    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
    pip install -r requirements.txt
+   ```
+
+### Run the Tests
+Run the tests to ensure everything is working correctly. The tests cover unit tests, integration tests, and performance tests.
+1. Install test dependencies:
+   ```bash
+   pip install -r requirements-test.txt
+   ```
+
+2. Run the tests:
+   ```bash
+   chmod +x scripts/run_tests.sh
+   ./scripts/run_tests.sh all
+   ```
+
+### Run the Application
+1. Run the application server:
+   ```bash
+   # python
    python main.py
 
    # docker
    docker-compose up
    ```
 
-3. Open your web browser and go to: `http://localhost:8080`
-
-### Run Tests
-The project includes comprehensive tests to ensure code quality and functionality:
-
-```bash
-# Install test dependencies
-pip install -r requirements-test.txt
-
-# Run all tests
-pytest
-
-# Run tests with coverage report
-pytest --cov=src --cov-report=html
-
-# Run only unit tests (fast)
-pytest -m "not slow and not integration"
-
-# Run with verbose output
-pytest -v
-
-# Run specific test file
-pytest tests/test_environment.py
-```
+2. Open your web browser and go to: `http://localhost:8080`
 
 ## Researcher Notes
 
@@ -135,75 +130,13 @@ ppo:
 - The visualization polls the backend every 100ms for smooth animation
 - Modular architecture allows for easy testing and maintenance
 
-### Testing
-
-The project uses pytest for comprehensive testing with the following test categories:
-
-#### Test Organization
-```
-tests/
-├── __init__.py
-├── conftest.py                 # Shared fixtures and configuration
-├── test_agent.py              # PPO agent tests
-├── test_config.py             # Configuration loading tests
-├── test_environment.py        # Cart-pole environment tests
-├── test_integration.py        # Full application integration tests
-├── test_main.py              # Main module tests (example/training mode)
-├── test_network.py           # Neural network tests
-├── test_training.py          # Training loop tests
-├── test_utils.py             # Utility function tests
-└── test_web_server.py        # Flask web server tests
-```
-
-#### Test Types
-- **Unit Tests**: Test individual components in isolation
-- **Integration Tests**: Test component interactions and full application flow
-- **Mock-based Tests**: Use mocks to isolate components and control dependencies
-
-#### Adding New Tests
-
-When adding new functionality, follow these testing guidelines:
-
-1. **Create unit tests** for new functions/classes in the appropriate `test_*.py` file
-2. **Use fixtures** from `conftest.py` for common test setup (config, temp directories, etc.)
-3. **Mock external dependencies** using `unittest.mock` or `pytest-mock`
-4. **Add integration tests** for new features that span multiple modules
-5. **Mark slow tests** with `@pytest.mark.slow` for selective test execution
-
-**Example test structure:**
-```python
-def test_new_feature(sample_config, temp_dir):
-    """Test description following naming convention."""
-    # Arrange
-    setup_test_data()
-    
-    # Act
-    result = call_feature_under_test()
-    
-    # Assert
-    assert expected_behavior(result)
-```
-
-#### Running Specific Test Categories
-```bash
-# Run only fast tests
-pytest -m "not slow"
-
-# Run only integration tests
-pytest -m integration
-
-# Run tests for specific module
-pytest tests/test_agent.py -v
-
-# Run tests with pattern matching
-pytest -k "test_environment" -v
-```
-
 ### Project Layout
 
 The project is organized as follows:
 ```
 cart-pole-ppo/
+├── scripts/                      # Utility scripts
+│   └── run_tests.sh              # Script to run all tests
 ├── src/
 │   ├── visualization/            # Frontend files (HTML, CSS, JS)
 │   │   ├── index.html            # Main HTML page
@@ -216,10 +149,45 @@ cart-pole-ppo/
 │   ├── training.py               # Training loop and experience collection
 │   ├── utils.py                  # Utility functions (logging, config loading)
 │   └── web_server.py             # Flask server and API endpoints
+├── tests/                        # Test files
+│   ├── conftest.py               # Pytest fixtures and configuration
+│   ├── test_agent.py             # Tests for PPO agent
+│   ├── test_config.py            # Tests for configuration loading
+│   ├── test_environment.py       # Tests for custom environment
+│   ├── test_integration.py       # Integration tests for end-to-end functionality
+│   ├── test_main.py              # Tests for main entry point
+│   ├── test_network.py           # Tests for neural network architecture
+│   ├── test_training.py          # Tests for training loop
+│   ├── test_utils.py             # Tests for utility functions
+│   └── test_web_server.py        # Tests for web server and API endpoints
 ├── config.yaml                   # Configuration file for hyperparameters and settings
 ├── docker-compose.yml            # Docker Compose configuration
 ├── main.py                       # Main entry point to start training and server
+├── requirements-test.txt         # Test dependencies
 └── requirements.txt              # Python dependencies
+```
+
+### Testing
+
+```bash
+# Install test dependencies
+pip install -r requirements-test.txt
+
+# Run all tests
+pytest
+
+# Run tests with coverage report
+pytest --cov=src --cov-report=html
+
+# Run only unit tests (fast)
+pytest -m "not slow and not integration"
+
+# Run with verbose output
+pytest -v
+
+# Run specific test file
+pytest tests/test_environment.py
+```
 
 ## License
 
