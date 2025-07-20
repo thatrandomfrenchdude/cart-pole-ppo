@@ -110,15 +110,34 @@ ppo:
 - The training runs in a separate thread to avoid blocking the web server
 - State normalization and advantage estimation improve learning stability
 - The visualization polls the backend every 100ms for smooth animation
+- Modular architecture allows for easy testing and maintenance
 
 ### Project Layout
 
-- `main.py`: Python backend with PPO implementation and Flask web server
+The project is now organized into modular components for better maintainability:
+
+**Core Application:**
+- `main.py`: Application entry point and orchestration
+- `config.yaml`: Configuration file for hyperparameters and settings
+
+**Source Modules (`src/` directory):**
+- `config.py`: Configuration loading and validation
+- `environment.py`: Cart-pole environment implementation
+- `network.py`: Neural network architecture (PPONetwork)
+- `agent.py`: PPO agent implementation
+- `training.py`: Training loops (both training and example modes)
+- `web_server.py`: Flask web server and API routes
+- `utils.py`: Utility functions (logging setup)
+
+**Web Interface:**
 - `index.html`: Web interface structure
 - `visualization.js`: Real-time visualization and data polling
 - `styles.css`: Styling for the web interface
+
+**Other Files:**
 - `docker-compose.yaml`: Docker configuration for easy deployment
-- `config.yaml`: Configuration file for hyperparameters and settings
+- `test_modules.py`: Module tests to verify functionality
+- `requirements.txt`: Python dependencies
 
 ## License
 
