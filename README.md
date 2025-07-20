@@ -48,6 +48,29 @@ Requires either Python 3.8+ with dependencies installed or Docker and Docker Com
 
 3. Open your web browser and go to: `http://localhost:8080`
 
+### Run Tests
+The project includes comprehensive tests to ensure code quality and functionality:
+
+```bash
+# Install test dependencies
+pip install -r requirements-test.txt
+
+# Run all tests
+pytest
+
+# Run tests with coverage report
+pytest --cov=src --cov-report=html
+
+# Run only unit tests (fast)
+pytest -m "not slow and not integration"
+
+# Run with verbose output
+pytest -v
+
+# Run specific test file
+pytest tests/test_environment.py
+```
+
 ## Researcher Notes
 
 ### PPO Algorithm Details
@@ -111,6 +134,70 @@ ppo:
 - State normalization and advantage estimation improve learning stability
 - The visualization polls the backend every 100ms for smooth animation
 - Modular architecture allows for easy testing and maintenance
+
+### Testing
+
+The project uses pytest for comprehensive testing with the following test categories:
+
+#### Test Organization
+```
+tests/
+├── __init__.py
+├── conftest.py                 # Shared fixtures and configuration
+├── test_agent.py              # PPO agent tests
+├── test_config.py             # Configuration loading tests
+├── test_environment.py        # Cart-pole environment tests
+├── test_integration.py        # Full application integration tests
+├── test_main.py              # Main module tests (example/training mode)
+├── test_network.py           # Neural network tests
+├── test_training.py          # Training loop tests
+├── test_utils.py             # Utility function tests
+└── test_web_server.py        # Flask web server tests
+```
+
+#### Test Types
+- **Unit Tests**: Test individual components in isolation
+- **Integration Tests**: Test component interactions and full application flow
+- **Mock-based Tests**: Use mocks to isolate components and control dependencies
+
+#### Adding New Tests
+
+When adding new functionality, follow these testing guidelines:
+
+1. **Create unit tests** for new functions/classes in the appropriate `test_*.py` file
+2. **Use fixtures** from `conftest.py` for common test setup (config, temp directories, etc.)
+3. **Mock external dependencies** using `unittest.mock` or `pytest-mock`
+4. **Add integration tests** for new features that span multiple modules
+5. **Mark slow tests** with `@pytest.mark.slow` for selective test execution
+
+**Example test structure:**
+```python
+def test_new_feature(sample_config, temp_dir):
+    """Test description following naming convention."""
+    # Arrange
+    setup_test_data()
+    
+    # Act
+    result = call_feature_under_test()
+    
+    # Assert
+    assert expected_behavior(result)
+```
+
+#### Running Specific Test Categories
+```bash
+# Run only fast tests
+pytest -m "not slow"
+
+# Run only integration tests
+pytest -m integration
+
+# Run tests for specific module
+pytest tests/test_agent.py -v
+
+# Run tests with pattern matching
+pytest -k "test_environment" -v
+```
 
 ### Project Layout
 

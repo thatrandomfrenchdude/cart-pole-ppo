@@ -4,7 +4,10 @@ import torch.nn.functional as F
 import os
 import logging
 
-from .network import PPONetwork
+try:
+    from .network import PPONetwork
+except ImportError:
+    from network import PPONetwork
 
 
 logger = logging.getLogger(__name__)
