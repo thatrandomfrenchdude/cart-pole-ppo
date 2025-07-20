@@ -114,30 +114,25 @@ ppo:
 
 ### Project Layout
 
-The project is now organized into modular components for better maintainability:
-
-**Core Application:**
-- `main.py`: Application entry point and orchestration
-- `config.yaml`: Configuration file for hyperparameters and settings
-
-**Source Modules (`src/` directory):**
-- `config.py`: Configuration loading and validation
-- `environment.py`: Cart-pole environment implementation
-- `network.py`: Neural network architecture (PPONetwork)
-- `agent.py`: PPO agent implementation
-- `training.py`: Training loops (both training and example modes)
-- `web_server.py`: Flask web server and API routes
-- `utils.py`: Utility functions (logging setup)
-
-**Web Interface:**
-- `index.html`: Web interface structure
-- `visualization.js`: Real-time visualization and data polling
-- `styles.css`: Styling for the web interface
-
-**Other Files:**
-- `docker-compose.yaml`: Docker configuration for easy deployment
-- `test_modules.py`: Module tests to verify functionality
-- `requirements.txt`: Python dependencies
+The project is organized as follows:
+```
+cart-pole-ppo/
+├── src/
+│   ├── visualization/            # Frontend files (HTML, CSS, JS)
+│   │   ├── index.html            # Main HTML page
+│   │   ├── styles.css            # CSS styles
+│   │   └── visualization.js      # JavaScript for visualization and API calls
+│   ├── agent.py                  # PPO agent implementation
+│   ├── config.py                 # Configuration file for hyperparameters and settings
+│   ├── environment.py            # Custom cart-pole environment
+│   ├── network.py                # Neural network architecture
+│   ├── training.py               # Training loop and experience collection
+│   ├── utils.py                  # Utility functions (logging, config loading)
+│   └── web_server.py             # Flask server and API endpoints
+├── config.yaml                   # Configuration file for hyperparameters and settings
+├── docker-compose.yml            # Docker Compose configuration
+├── main.py                       # Main entry point to start training and server
+└── requirements.txt              # Python dependencies
 
 ## License
 

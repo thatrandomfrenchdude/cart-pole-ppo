@@ -13,7 +13,7 @@ def create_app(current_state, reward_history, episode_rewards):
     
     @app.route('/')
     def index():
-        with open('index.html', 'r') as f:
+        with open('src/visualization/index.html', 'r') as f:
             return f.read()
 
     @app.route('/styles.css')
@@ -23,7 +23,7 @@ def create_app(current_state, reward_history, episode_rewards):
 
     @app.route('/visualization.js')
     def visualization():
-        with open('visualization.js', 'r') as f:
+        with open('src/visualization/visualization.js', 'r') as f:
             return f.read(), 200, {'Content-Type': 'application/javascript'}
 
     @app.route('/state')
