@@ -1,4 +1,6 @@
-# Cart-Pole PPO Reinfo### Features
+# Cart-Pole PPO Reinforcement Learning with Web Visualization
+
+## Features
 
 ### PPO Implementation
 - Actor-Critic neural network architecture
@@ -214,32 +216,21 @@ Training sessions generate intelligent, continuous log files:
 - **Comprehensive Details**: Episode progress, model saves, errors, and system events (no web request clutter)
 - **Configurable Name**: Log filename can be customized in `config.yaml`
 
-Example log content showing both fresh start and resume:
+Example log content:
 ```
 2025-01-01 10:00:00,000 - ============================================================
 2025-01-01 10:00:00,001 - PPO Cart-Pole Training Session Started
 2025-01-01 10:00:00,002 - ============================================================
 2025-01-01 10:00:00,003 - Configuration loaded successfully
-2025-01-01 10:00:00,004 - Logging to file: training.log (overwrite mode (fresh start))
-2025-01-01 10:00:01,000 - No existing model found. Starting fresh training session
-2025-01-01 10:00:01,001 - Starting Episode 1
-2025-01-01 10:00:05,000 - Episode 1 finished with reward: 23.0
-2025-01-01 10:00:05,001 - Auto-saving at episode 1
+2025-01-01 10:00:00,004 - Logging to file: training.log (overwrite mode)
+2025-01-01 10:00:01,000 - Model loaded from models/ppo_cartpole.pth
+2025-01-01 10:00:01,001 - Training state restored - Episode: 15, Timestep: 342
+2025-01-01 10:00:01,002 - Resuming training from episode 16, timestep 342
+2025-01-01 10:00:01,003 - Starting Episode 16
+2025-01-01 10:00:05,000 - Episode 16 finished with reward: 23.0
+2025-01-01 10:00:05,001 - Auto-saving at episode 16
 2025-01-01 10:00:05,002 - Model successfully saved to models/ppo_cartpole.pth
-...
-2025-01-01 10:10:00,000 - Training loop ending. Saving final state...
-2025-01-01 10:10:00,001 - Model successfully saved to models/ppo_cartpole.pth
-
-2025-01-01 11:00:00,000 - ============================================================
-2025-01-01 11:00:00,001 - PPO Cart-Pole Training Session RESUMED
-2025-01-01 11:00:00,002 - ============================================================
-2025-01-01 11:00:00,003 - Configuration loaded successfully
-2025-01-01 11:00:00,004 - Logging to file: training.log (append mode (resuming training))
-2025-01-01 11:00:01,000 - Model loaded from models/ppo_cartpole.pth
-2025-01-01 11:00:01,001 - Training state restored - Episode: 15, Timestep: 342
-2025-01-01 11:00:01,002 - Resuming training from episode 16, timestep 342
-2025-01-01 11:00:01,003 - Starting Episode 16
-2025-01-01 11:00:05,000 - Episode 16 finished with reward: 45.0
+2025-01-01 10:00:05,003 - Training state saved - Episode: 16, Timestep: 365
 ```
 
 ### Modify Hyperparameters
