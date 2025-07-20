@@ -434,6 +434,11 @@ def training_loop(env, agent, simulation_speed, summary_frequency, update_freque
 # Flask app
 app = Flask(__name__)
 
+# Configure Flask to suppress access logs for cleaner training logs
+import logging as flask_logging
+flask_log = flask_logging.getLogger('werkzeug')
+flask_log.setLevel(flask_logging.ERROR)  # Only show errors, not access logs
+
 @app.route('/')
 def index():
     with open('index.html', 'r') as f:

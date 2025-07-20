@@ -204,11 +204,12 @@ Saved state includes:
 - All hyperparameters for consistency
 
 ### Log Files
-Training sessions generate detailed log files:
+Training sessions generate focused, clean log files:
+- **Clean Training Logs**: Flask web server access logs are suppressed for readability
 - **Overwrite Mode**: Each run creates a fresh log file (previous logs are replaced)
 - **Dual Output**: All logs appear in both console and file
 - **Session Tracking**: Clear start/end markers for each training session
-- **Comprehensive Details**: Episode progress, model saves, errors, and system events
+- **Comprehensive Details**: Episode progress, model saves, errors, and system events (no web request clutter)
 - **Configurable Name**: Log filename can be customized in `config.yaml`
 
 Example log content:
