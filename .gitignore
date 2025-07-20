@@ -1,11 +1,9 @@
 # Log files
-*.log
-training.log
-training_example.log
+*training.log
 
 # Model checkpoints
 models/
-*.pth
+# *.pth
 
 # Python
 __pycache__/
