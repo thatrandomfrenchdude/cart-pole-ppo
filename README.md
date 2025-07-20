@@ -1,4 +1,23 @@
-# Cart-Pole PPO Reinforcement Learning
+# Cart-Pole PPO Reinfo### Features
+
+### PPO Implementation
+- Actor-Critic neural network architecture
+- Experience collection and policy updates
+- Advantage estimation and reward normalization
+- Configurable hyperparameters (learning rate, clipping ratio, etc.)
+- **Model Save/Load**: Automatic saving and loading of trained models to resume training
+
+### Model Persistence
+- **Automatic Saving**: Models are saved every 50 episodes by default
+- **Resume Training**: Automatically loads existing models when restarting the application
+- **Configurable Path**: Model save location can be customized in `config.yaml`
+- **Checkpoint Data**: Saves both model weights and optimizer state for seamless resumption
+
+### Logging System
+- **Dual Output**: Logs are written to both console and file simultaneously
+- **Session Overwrite**: Each run overwrites the previous log file (keeps only the latest session)
+- **Configurable File**: Log filename can be customized in `config.yaml`
+- **Detailed Tracking**: Comprehensive logging of training progress, model saves, and system events Learning
 
 A minimal imple4. Open your web browser and go to: `http://localhost:8080`entation of Proximal Policy Optimization (PPO) for the Cart-Pole environment with real-time web visualization.
 
@@ -119,8 +138,64 @@ The implementation includes:
 
 ## Customization
 
+### Configuration File
+The `config.yaml` file allows you to customize all aspects of training:
+
+```yaml
+# Model persistence
+training:
+  model_save_path: "models/ppo_cartpole.pth"  # Where to save/load models
+  save_frequency: 50                          # Save every N episodes
+  
+# PPO hyperparameters
+ppo:
+  learning_rate: 0.0003
+  discount_factor: 0.99
+  clip_ratio: 0.2
+  
+# Environment physics
+environment:
+  gravity: 9.8
+  cart_mass: 1.0
+  pole_mass: 0.1
+
+# Logging configuration
+logging:
+  level: "INFO"                               # Logging level (DEBUG, INFO, WARNING, ERROR)
+  log_file: "training.log"                    # Log file name (overwrites each run)
+  episode_summary_frequency: 10               # Episodes between summary logs
+```
+
+### Resume Training
+The application automatically:
+1. Checks for an existing model at the configured path
+2. Loads the model if found and continues training
+3. Creates a new model if no saved model exists
+4. Saves checkpoints periodically during training
+
+### Log Files
+Training sessions generate detailed log files:
+- **Overwrite Mode**: Each run creates a fresh log file (previous logs are replaced)
+- **Dual Output**: All logs appear in both console and file
+- **Session Tracking**: Clear start/end markers for each training session
+- **Comprehensive Details**: Episode progress, model saves, errors, and system events
+- **Configurable Name**: Log filename can be customized in `config.yaml`
+
+Example log content:
+```
+2025-01-01 10:00:00,000 - ============================================================
+2025-01-01 10:00:00,001 - PPO Cart-Pole Training Session Started
+2025-01-01 10:00:00,002 - ============================================================
+2025-01-01 10:00:00,003 - Configuration loaded successfully
+2025-01-01 10:00:00,004 - Logging to file: training.log (overwrite mode)
+2025-01-01 10:00:01,000 - Starting Episode 1
+2025-01-01 10:00:05,000 - Episode 1 finished with reward: 23.0
+2025-01-01 10:00:15,000 - Reached save frequency trigger: Episode 50, Save frequency: 50
+2025-01-01 10:00:15,001 - Model successfully saved to models/ppo_cartpole.pth
+```
+
 ### Modify Hyperparameters
-Edit the PPOAgent initialization in `main.py`:
+Edit values in `config.yaml` or modify the PPOAgent initialization in `main.py`:
 ```python
 agent = PPOAgent(lr=3e-4, gamma=0.99, eps_clip=0.2, k_epochs=4)
 ```

@@ -31,6 +31,8 @@ training:
   simulation_speed: 0.05                # Sleep time between steps (seconds)
   reward_history_length: 1000           # Maximum reward history to keep
   episode_history_length: 100           # Episodes for running average calculation
+  model_save_path: "models/ppo_cartpole.pth"  # Path to save/load the trained model
+  save_frequency: 50                    # Save model every N episodes
 
 # Web Server Configuration  
 server:
@@ -43,3 +45,4 @@ logging:
   level: "INFO"                         # Logging level
   format: "%(asctime)s - %(message)s"   # Log message format
   episode_summary_frequency: 10         # Episodes between summary logs
+  log_file: "training.log"              # Log file name (overwrites each run)

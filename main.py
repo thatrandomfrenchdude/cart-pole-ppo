@@ -27,10 +27,33 @@ def load_config():
             },
             'network': {'input_dim': 4, 'hidden_dim': 128, 'output_dim': 2},
             'ppo': {'learning_rate': 0.0003, 'discount_factor': 0.99, 'clip_ratio': 0.2, 'update_epochs': 4, 'update_frequency': 200},
-            'training': {'simulation_speed': 0.05, 'reward_history_length': 1000, 'episode_history_length': 100},
+            'training': {'simulation_speed': 0.05, 'reward_history_length': 1000, 'episode_history_length': 100, 'model_save_path': 'models/ppo_cartpole.pth', 'save_frequency': 50},
             'server': {'host': '0.0.0.0', 'port': 8080, 'debug': False},
-            'logging': {'level': 'INFO', 'format': '%(asctime)s - %(message)s', 'episode_summary_frequency': 10}
+            'logging': {'level': 'INFO', 'format': '%(asctime)s - %(message)s', 'episode_summary_frequency': 10, 'log_file': 'training.log'}
         }
+
+def setup_logging(config):
+    """Set up logging to both console and file with overwrite mode."""
+    log_file = config['logging']['log_file']
+    log_level = getattr(logging, config['logging']['level'])
+    log_format = config['logging']['format']
+    
+    # Clear any existing handlers
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+    
+    # Set up logging to both console and file (overwrite mode)
+    logging.basicConfig(
+        level=log_level,
+        format=log_format,
+        handlers=[
+            logging.StreamHandler(),  # Console output
+            logging.FileHandler(log_file, mode='w')  # File output (overwrite mode)
+        ],
+        force=True
+    )
+    
+    return log_file
 
 # Global variables for Flask endpoints
 current_state = {"position": 0, "velocity": 0, "angle": 0, "angular_velocity": 0, "reward": 0}
@@ -209,6 +232,51 @@ class PPOAgent:
         self.log_probs = []
         self.values = []
         self.dones = []
+    
+    def save_model(self, filepath):
+        """Save the model state dict and optimizer state."""
+        try:
+            # Create directory if it doesn't exist
+            directory = os.path.dirname(filepath)
+            if directory:  # Only create directory if directory path is not empty
+                os.makedirs(directory, exist_ok=True)
+            
+            checkpoint = {
+                'network_state_dict': self.network.state_dict(),
+                'optimizer_state_dict': self.optimizer.state_dict(),
+                'gamma': self.gamma,
+                'eps_clip': self.eps_clip,
+                'k_epochs': self.k_epochs
+            }
+            torch.save(checkpoint, filepath)
+            logger.info(f"Model successfully saved to {filepath}")
+        except Exception as e:
+            logger.error(f"Failed to save model to {filepath}: {str(e)}")
+            # Try to save to current directory as fallback
+            fallback_path = "ppo_cartpole_backup.pth"
+            try:
+                torch.save(checkpoint, fallback_path)
+                logger.info(f"Model saved to fallback location: {fallback_path}")
+            except Exception as e2:
+                logger.error(f"Failed to save to fallback location: {str(e2)}")
+    
+    def load_model(self, filepath):
+        """Load the model state dict and optimizer state."""
+        if os.path.exists(filepath):
+            checkpoint = torch.load(filepath, map_location='cpu')
+            self.network.load_state_dict(checkpoint['network_state_dict'])
+            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            
+            # Load hyperparameters if they exist in checkpoint
+            self.gamma = checkpoint.get('gamma', self.gamma)
+            self.eps_clip = checkpoint.get('eps_clip', self.eps_clip)
+            self.k_epochs = checkpoint.get('k_epochs', self.k_epochs)
+            
+            logger.info(f"Model loaded from {filepath}")
+            return True
+        else:
+            logger.info(f"No existing model found at {filepath}. Starting training from scratch.")
+            return False
 
 # Global variables for Flask endpoints
 current_state = {"position": 0, "velocity": 0, "angle": 0, "angular_velocity": 0, "reward": 0}
@@ -220,8 +288,27 @@ running = True
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def training_loop(env, agent, simulation_speed, summary_frequency, update_frequency):
+def training_loop(env, agent, simulation_speed, summary_frequency, update_frequency, model_save_path, save_frequency):
+    """
+    Main training loop for PPO agent.
+    
+    Args:
+        env: CartPole environment
+        agent: PPO agent
+        simulation_speed: Sleep time between steps
+        summary_frequency: Episodes between summary logs
+        update_frequency: Steps between PPO updates
+        model_save_path: Path to save model checkpoints
+        save_frequency: Episodes between model saves
+    """
     global current_state, current_reward, episode_rewards, reward_history
+    
+    # Debug logging for parameters
+    logger.info(f"Training loop started with parameters:")
+    logger.info(f"  - Model save path: {model_save_path}")
+    logger.info(f"  - Save frequency: {save_frequency} episodes")
+    logger.info(f"  - Summary frequency: {summary_frequency} episodes")
+    logger.info(f"  - Update frequency: {update_frequency} steps")
     
     episode = 0
     update_timestep = update_frequency
@@ -271,8 +358,17 @@ def training_loop(env, agent, simulation_speed, summary_frequency, update_freque
         
         episode += 1
         
+        # Save model periodically
+        if episode % save_frequency == 0:
+            logger.info(f"Reached save frequency trigger: Episode {episode}, Save frequency: {save_frequency}")
+            agent.save_model(model_save_path)
+        
         if episode % summary_frequency == 0:
             logger.info(f"Completed {episode} episodes. Recent average: {np.mean(list(episode_rewards)[-10:]):.2f}")
+    
+    # Save final model when training loop ends
+    logger.info("Training loop ended. Saving final model...")
+    agent.save_model(model_save_path)
 
 # Flask app
 app = Flask(__name__)
@@ -314,26 +410,53 @@ if __name__ == "__main__":
     episode_rewards = deque(episode_rewards, maxlen=config['training']['episode_history_length'])
     
     # Reconfigure logging with config settings
-    logging.basicConfig(
-        level=getattr(logging, config['logging']['level']), 
-        format=config['logging']['format'],
-        force=True
-    )
+    log_file = setup_logging(config)
+    
+    logger.info("="*60)
+    logger.info("PPO Cart-Pole Training Session Started")
+    logger.info("="*60)
     logger.info("Configuration loaded successfully")
+    logger.info(f"Logging to file: {log_file} (overwrite mode)")
+    logger.info(f"Training configuration:")
+    logger.info(f"  - Episodes between model saves: {config['training']['save_frequency']}")
+    logger.info(f"  - Episodes between summaries: {config['logging']['episode_summary_frequency']}")
+    logger.info(f"  - Model save path: {config['training']['model_save_path']}")
+    logger.info(f"  - Learning rate: {config['ppo']['learning_rate']}")
+    logger.info(f"  - Update frequency: {config['ppo']['update_frequency']} steps")
     
     # Initialize environment and agent
     env = CartPoleEnv(config)
     agent = PPOAgent(config)
     
+    # Try to load existing model if it exists
+    model_save_path = config['training']['model_save_path']
+    save_frequency = config['training']['save_frequency']
+    logger.info(f"Model save configuration: path='{model_save_path}', frequency={save_frequency}")
+    
+    if agent.load_model(model_save_path):
+        logger.info("Resuming training from saved model")
+    else:
+        logger.info("Starting training with new model")
+    
     # Start training in a separate thread
     training_thread = threading.Thread(
         target=training_loop, 
-        args=(env, agent, config['training']['simulation_speed'], config['logging']['episode_summary_frequency'], config['ppo']['update_frequency']),
+        args=(env, agent, config['training']['simulation_speed'], config['logging']['episode_summary_frequency'], config['ppo']['update_frequency'], model_save_path, save_frequency),
         daemon=True
     )
     training_thread.start()
     
     logger.info("Starting PPO Cart-Pole training and Flask server...")
     logger.info(f"Access the visualization at http://{config['server']['host']}:{config['server']['port']}")
+    logger.info("="*60)
     
-    app.run(host=config['server']['host'], port=config['server']['port'], debug=config['server']['debug'])
+    try:
+        app.run(host=config['server']['host'], port=config['server']['port'], debug=config['server']['debug'])
+    except KeyboardInterrupt:
+        logger.info("Training interrupted by user")
+    except Exception as e:
+        logger.error(f"Application error: {str(e)}")
+    finally:
+        logger.info("="*60)
+        logger.info("PPO Cart-Pole Training Session Ended")
+        logger.info("="*60)
