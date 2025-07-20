@@ -32,8 +32,8 @@ def load_config():
             'logging': {'level': 'INFO', 'format': '%(asctime)s - %(message)s', 'episode_summary_frequency': 10, 'log_file': 'training.log'}
         }
 
-def setup_logging(config):
-    """Set up logging to both console and file with overwrite mode."""
+def setup_logging(config, append_mode=False):
+    """Set up logging to both console and file."""
     log_file = config['logging']['log_file']
     log_level = getattr(logging, config['logging']['level'])
     log_format = config['logging']['format']
@@ -42,18 +42,22 @@ def setup_logging(config):
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
     
-    # Set up logging to both console and file (overwrite mode)
+    # Choose file mode based on whether we're resuming training
+    file_mode = 'a' if append_mode else 'w'
+    mode_description = "append mode (resuming training)" if append_mode else "overwrite mode (fresh start)"
+    
+    # Set up logging to both console and file
     logging.basicConfig(
         level=log_level,
         format=log_format,
         handlers=[
             logging.StreamHandler(),  # Console output
-            logging.FileHandler(log_file, mode='w')  # File output (overwrite mode)
+            logging.FileHandler(log_file, mode=file_mode)  # File output
         ],
         force=True
     )
     
-    return log_file
+    return log_file, mode_description
 
 # Global variables for Flask endpoints
 current_state = {"position": 0, "velocity": 0, "angle": 0, "angular_velocity": 0, "reward": 0, "episode": 0, "timestep": 0}
@@ -469,20 +473,32 @@ if __name__ == "__main__":
     # Load configuration
     config = load_config()
     
+    # Check if we're resuming from an existing model
+    model_save_path = config['training']['model_save_path']
+    model_exists = os.path.exists(model_save_path)
+    
     # Update global deque sizes with config settings
     reward_history.clear()
     reward_history = deque(reward_history, maxlen=config['training']['reward_history_length'])
     episode_rewards.clear()
     episode_rewards = deque(episode_rewards, maxlen=config['training']['episode_history_length'])
     
-    # Reconfigure logging with config settings
-    log_file = setup_logging(config)
+    # Set up logging - append if resuming, overwrite if starting fresh
+    log_file, log_mode_desc = setup_logging(config, append_mode=model_exists)
     
-    logger.info("="*60)
-    logger.info("PPO Cart-Pole Training Session Started")
-    logger.info("="*60)
+    # Add session separator if appending to existing log
+    if model_exists:
+        logger.info("")  # Empty line for separation
+        logger.info("="*60)
+        logger.info("PPO Cart-Pole Training Session RESUMED")
+        logger.info("="*60)
+    else:
+        logger.info("="*60)
+        logger.info("PPO Cart-Pole Training Session Started")
+        logger.info("="*60)
+    
     logger.info("Configuration loaded successfully")
-    logger.info(f"Logging to file: {log_file} (overwrite mode)")
+    logger.info(f"Logging to file: {log_file} ({log_mode_desc})")
     logger.info(f"Training configuration:")
     logger.info(f"  - Episodes between model saves: {config['training']['save_frequency']}")
     logger.info(f"  - Episodes between summaries: {config['logging']['episode_summary_frequency']}")
@@ -494,8 +510,7 @@ if __name__ == "__main__":
     env = CartPoleEnv(config)
     agent = PPOAgent(config)
     
-    # Model loading is now handled within the training loop
-    model_save_path = config['training']['model_save_path']
+    # Model configuration (model_save_path already defined above)
     save_frequency = config['training']['save_frequency']
     logger.info(f"Model save configuration: path='{model_save_path}', frequency={save_frequency}")
     

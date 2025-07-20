@@ -45,4 +45,4 @@ logging:
   level: "INFO"                         # Logging level
   format: "%(asctime)s - %(message)s"   # Log message format
   episode_summary_frequency: 10         # Episodes between summary logs
-  log_file: "training.log"              # Log file name (overwrites each run, Flask access logs suppressed)
+  log_file: "training.log"              # Log file name (appends when resuming, overwrites when starting fresh)
