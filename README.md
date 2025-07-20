@@ -6,9 +6,13 @@ This project demonstrates a complete reinforcement learning pipeline for the car
 - [Architecture](#architecture)
 - [Features](#features)
 - [Quick Start](#quick-start)
-- [PPO Algorithm Details](#ppo-algorithm-details)
-- [Customization with the Configuration File](#customization-with-the-configuration-file)
+- [Researcher Notes](#researcher-notes)
+   - [PPO Algorithm Details](#ppo-algorithm-details)
+   - [Customization with the Configuration File](#customization-with-the-configuration-file)
 - [Developer Notes](#developer-notes)
+   - [Technical Implementation](#technical-implementation)
+   - [Project Layout](#project-layout)
+- [License](#license)
 
 ## Quick Start
 
@@ -40,7 +44,9 @@ The training will start automatically and you'll see:
 - Training metrics and episode rewards
 - Live logging in the console output
 
-## PPO Algorithm Details
+## Researcher Notes
+
+### PPO Algorithm Details
 
 The implementation includes:
 - **Policy Network**: Outputs action probabilities
@@ -49,7 +55,7 @@ The implementation includes:
 - **Clipped Surrogate Objective**: Prevents large policy updates
 - **Generalized Advantage Estimation**: Improves learning stability
 
-### Training Process
+#### Training Process
 
 1. **Environment Reset**: Start new episode with random initial state
 2. **Action Selection**: Policy network chooses actions based on current state
@@ -57,13 +63,13 @@ The implementation includes:
 4. **Policy Updates**: Every 200 steps, update the policy using PPO loss
 5. **Performance Tracking**: Log episode rewards and training statistics
 
-### Performance Expectations
+#### Performance Expectations
 
 - Cart-Pole is considered "solved" when achieving an average reward of 195+ over 100 consecutive episodes
 - Training typically shows improvement within the first few episodes
 - Complete learning usually occurs within 100-500 episodes depending on initialization
 
-## Customization with the Configuration File
+### Customization with the Configuration File
 The [`config.yaml`](config.yaml) file allows you to customize all aspects of training. There are sections for environment parameters, neural network architecture, PPO hyperparameters, training settings, server configuration, and logging.
 
 Below are the environment and ppo subsets of the config:
@@ -109,3 +115,7 @@ ppo:
 - `styles.css`: Styling for the web interface
 - `docker-compose.yaml`: Docker configuration for easy deployment
 - `config.yaml`: Configuration file for hyperparameters and settings
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
