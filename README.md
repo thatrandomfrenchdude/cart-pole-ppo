@@ -44,6 +44,14 @@ The training will start automatically and you'll see:
 - Training metrics and episode rewards
 - Live logging in the console output
 
+### Example Training Run
+
+The `example/` directory contains a complete successful training run that demonstrates the expected behavior:
+- `model.pth`: A pre-trained model that successfully solved the cart-pole problem (achieved 196.15 average reward over 100 episodes)
+- `training-log.log`: Complete training log showing 480 episodes of training with detailed timestep information and final success
+
+This example can serve as a reference for expected training behavior and performance benchmarks.
+
 ## Researcher Notes
 
 ### PPO Algorithm Details
