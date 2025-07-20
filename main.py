@@ -27,7 +27,7 @@ def load_config():
             },
             'network': {'input_dim': 4, 'hidden_dim': 128, 'output_dim': 2},
             'ppo': {'learning_rate': 0.0003, 'discount_factor': 0.99, 'clip_ratio': 0.2, 'update_epochs': 4, 'update_frequency': 200},
-            'training': {'simulation_speed': 0.05, 'reward_history_length': 1000, 'episode_history_length': 100, 'model_save_path': 'models/ppo_cartpole.pth', 'save_frequency': 50, 'solved_reward_threshold': 195.0, 'solved_episodes_window': 100, 'stop_when_solved': True},
+            'training': {'simulation_speed': 0.05, 'reward_history_length': 1000, 'episode_history_length': 100, 'model_save_path': 'models/ppo_cartpole.pth', 'save_frequency': 50, 'solved_reward_threshold': 195.0, 'solved_episodes_window': 100, 'stop_when_solved': True, 'example_mode': False, 'example_model_path': 'example/model.pth'},
             'server': {'host': '0.0.0.0', 'port': 8080, 'debug': False},
             'logging': {'level': 'INFO', 'format': '%(asctime)s - %(message)s', 'episode_summary_frequency': 10, 'log_file': 'training.log'}
         }
@@ -461,6 +461,94 @@ def training_loop(env, agent, simulation_speed, summary_frequency, update_freque
         logger.info("Training loop ending. Saving final state...")
         save_training_state()
 
+def example_mode_loop(env, agent, simulation_speed, example_model_path):
+    """
+    Example mode loop that runs a pre-trained model for demonstration.
+    Training metrics and episode rewards are frozen, but live state is updated.
+    
+    Args:
+        env: CartPole environment
+        agent: PPO agent
+        simulation_speed: Sleep time between steps
+        example_model_path: Path to the pre-trained model
+    """
+    global current_state, running
+    
+    logger.info("="*60)
+    logger.info("🎬 EXAMPLE MODE - Running Pre-trained Model")
+    logger.info("="*60)
+    logger.info(f"Loading model from: {example_model_path}")
+    
+    # Load the pre-trained model
+    try:
+        training_state = agent.load_model(example_model_path)
+        logger.info("Pre-trained model loaded successfully")
+        
+        if training_state and training_state['episode'] > 0:
+            logger.info(f"Model was trained for {training_state['episode']} episodes")
+    except Exception as e:
+        logger.error(f"Failed to load example model: {e}")
+        logger.error("Cannot run example mode without a valid model")
+        return
+    
+    logger.info("Starting example demonstration...")
+    logger.info("Press Ctrl+C to stop the demonstration")
+    
+    # Initialize demonstration state
+    episode = 1
+    total_timestep = 0
+    
+    try:
+        while running:
+            state = env.reset()
+            episode_reward = 0
+            done = False
+            timestep_in_episode = 0
+            
+            logger.info(f"Starting demonstration episode {episode}")
+            
+            while not done and running:
+                # Use the trained model to select action (no exploration)
+                action, _, _ = agent.select_action(state)
+                next_state, reward, done = env.step(action)
+                
+                # Update current state for live visualization (keep these dynamic)
+                current_state.update({
+                    "position": float(next_state[0]),
+                    "velocity": float(next_state[1]),
+                    "angle": float(next_state[2]),
+                    "angular_velocity": float(next_state[3]),
+                    "timestep": total_timestep
+                })
+                # Note: reward, episode are kept frozen from initialization
+                
+                episode_reward += reward
+                state = next_state
+                timestep_in_episode += 1
+                total_timestep += 1
+                
+                # Log current state less frequently for cleaner output
+                if timestep_in_episode % 20 == 0 or done:
+                    logger.info(f"Episode {episode}, Step {timestep_in_episode}: Pos={next_state[0]:.3f}, Angle={next_state[2]:.3f}, Reward={reward}")
+                
+                time.sleep(simulation_speed)
+            
+            if not running:
+                break
+                
+            logger.info(f"Demonstration episode {episode} finished with reward: {episode_reward}")
+            episode += 1
+            
+            # Brief pause between episodes
+            time.sleep(1.0)
+        
+    except Exception as e:
+        logger.error(f"Error in example mode: {e}")
+        raise
+    finally:
+        logger.info("Example mode demonstration ended")
+        logger.info("="*60)
+
 # Flask app
 app = Flask(__name__)
 
@@ -499,68 +587,115 @@ if __name__ == "__main__":
     # Load configuration
     config = load_config()
     
-    # Check if we're resuming from an existing model
-    model_save_path = config['training']['model_save_path']
-    model_exists = os.path.exists(model_save_path)
+    # Check for example mode
+    example_mode = config['training'].get('example_mode', False)
     
-    # Update global deque sizes with config settings
-    reward_history.clear()
-    reward_history = deque(reward_history, maxlen=config['training']['reward_history_length'])
-    episode_rewards.clear()
-    episode_rewards = deque(episode_rewards, maxlen=config['training']['episode_history_length'])
-    
-    # Set up logging - append if resuming, overwrite if starting fresh
-    log_file, log_mode_desc = setup_logging(config, append_mode=model_exists)
-    
-    # Add session separator if appending to existing log
-    if model_exists:
-        logger.info("")  # Empty line for separation
+    if example_mode:
+        example_model_path = config['training'].get('example_model_path', 'example/model.pth')
+        
+        # Set up logging for example mode (always overwrite)
+        log_file, log_mode_desc = setup_logging(config, append_mode=False)
+        
         logger.info("="*60)
-        logger.info("PPO Cart-Pole Training Session RESUMED")
+        logger.info("🎬 PPO Cart-Pole Example Mode")
         logger.info("="*60)
+        logger.info("Configuration loaded successfully")
+        logger.info(f"Example model path: {example_model_path}")
+        logger.info(f"Logging to file: {log_file} ({log_mode_desc})")
+        
+        # Initialize environment and agent for example mode
+        env = CartPoleEnv(config)
+        agent = PPOAgent(config)
+        
+        # Initialize current_state with frozen example values for display
+        current_state.update({
+            "reward": 1.0,  # Frozen - typical reward for successful steps
+            "episode": 999,  # Frozen - indicates example mode
+        })
+        
+        # Initialize reward history with example data (frozen for display)
+        example_rewards = [195.0] * 100  # Show that this model is already solved
+        reward_history.extend(example_rewards)
+        episode_rewards.extend(example_rewards)
+        
+        # Start example mode in a separate thread
+        training_thread = threading.Thread(
+            target=example_mode_loop,
+            args=(env, agent, config['training']['simulation_speed'], example_model_path),
+            daemon=False
+        )
+        training_thread.start()
+        
+        logger.info("Starting example demonstration and Flask server...")
+        logger.info(f"Access the visualization at http://{config['server']['host']}:{config['server']['port']}")
+        logger.info("="*60)
+        
     else:
+        # Original training mode
+        # Check if we're resuming from an existing model
+        model_save_path = config['training']['model_save_path']
+        model_exists = os.path.exists(model_save_path)
+        
+        # Update global deque sizes with config settings
+        reward_history.clear()
+        reward_history = deque(reward_history, maxlen=config['training']['reward_history_length'])
+        episode_rewards.clear()
+        episode_rewards = deque(episode_rewards, maxlen=config['training']['episode_history_length'])
+        
+        # Set up logging - append if resuming, overwrite if starting fresh
+        log_file, log_mode_desc = setup_logging(config, append_mode=model_exists)
+        
+        # Add session separator if appending to existing log
+        if model_exists:
+            logger.info("")  # Empty line for separation
+            logger.info("="*60)
+            logger.info("PPO Cart-Pole Training Session RESUMED")
+            logger.info("="*60)
+        else:
+            logger.info("="*60)
+            logger.info("PPO Cart-Pole Training Session Started")
+            logger.info("="*60)
+        
+        logger.info("Configuration loaded successfully")
+        logger.info(f"Logging to file: {log_file} ({log_mode_desc})")
+        logger.info(f"Training configuration:")
+        logger.info(f"  - Episodes between model saves: {config['training']['save_frequency']}")
+        logger.info(f"  - Episodes between summaries: {config['logging']['episode_summary_frequency']}")
+        logger.info(f"  - Model save path: {config['training']['model_save_path']}")
+        logger.info(f"  - Learning rate: {config['ppo']['learning_rate']}")
+        logger.info(f"  - Update frequency: {config['ppo']['update_frequency']} steps")
+        logger.info(f"  - Solved threshold: {config['training']['solved_reward_threshold']} average reward")
+        logger.info(f"  - Solved window: {config['training']['solved_episodes_window']} episodes")
+        logger.info(f"  - Stop when solved: {config['training']['stop_when_solved']}")
+        
+        # Initialize environment and agent
+        env = CartPoleEnv(config)
+        agent = PPOAgent(config)
+        
+        # Model configuration (model_save_path already defined above)
+        save_frequency = config['training']['save_frequency']
+        logger.info(f"Model save configuration: path='{model_save_path}', frequency={save_frequency}")
+        
+        # Start training in a separate thread
+        training_thread = threading.Thread(
+            target=training_loop, 
+            args=(env, agent, config['training']['simulation_speed'], config['logging']['episode_summary_frequency'], config['ppo']['update_frequency'], model_save_path, save_frequency, config['training']['solved_reward_threshold'], config['training']['solved_episodes_window'], config['training']['stop_when_solved']),
+            daemon=False  # Don't make it a daemon so it can run properly
+        )
+        training_thread.start()
+        
+        logger.info("Starting PPO Cart-Pole training and Flask server...")
+        logger.info(f"Access the visualization at http://{config['server']['host']}:{config['server']['port']}")
         logger.info("="*60)
-        logger.info("PPO Cart-Pole Training Session Started")
-        logger.info("="*60)
-    
-    logger.info("Configuration loaded successfully")
-    logger.info(f"Logging to file: {log_file} ({log_mode_desc})")
-    logger.info(f"Training configuration:")
-    logger.info(f"  - Episodes between model saves: {config['training']['save_frequency']}")
-    logger.info(f"  - Episodes between summaries: {config['logging']['episode_summary_frequency']}")
-    logger.info(f"  - Model save path: {config['training']['model_save_path']}")
-    logger.info(f"  - Learning rate: {config['ppo']['learning_rate']}")
-    logger.info(f"  - Update frequency: {config['ppo']['update_frequency']} steps")
-    logger.info(f"  - Solved threshold: {config['training']['solved_reward_threshold']} average reward")
-    logger.info(f"  - Solved window: {config['training']['solved_episodes_window']} episodes")
-    logger.info(f"  - Stop when solved: {config['training']['stop_when_solved']}")
-    
-    # Initialize environment and agent
-    env = CartPoleEnv(config)
-    agent = PPOAgent(config)
-    
-    # Model configuration (model_save_path already defined above)
-    save_frequency = config['training']['save_frequency']
-    logger.info(f"Model save configuration: path='{model_save_path}', frequency={save_frequency}")
-    
-    # Start training in a separate thread
-    training_thread = threading.Thread(
-        target=training_loop, 
-        args=(env, agent, config['training']['simulation_speed'], config['logging']['episode_summary_frequency'], config['ppo']['update_frequency'], model_save_path, save_frequency, config['training']['solved_reward_threshold'], config['training']['solved_episodes_window'], config['training']['stop_when_solved']),
-        daemon=False  # Don't make it a daemon so it can run properly
-    )
-    training_thread.start()
-    
-    logger.info("Starting PPO Cart-Pole training and Flask server...")
-    logger.info(f"Access the visualization at http://{config['server']['host']}:{config['server']['port']}")
-    logger.info("="*60)
-    
     try:
         app.run(host=config['server']['host'], port=config['server']['port'], debug=config['server']['debug'], threaded=True)
     except KeyboardInterrupt:
-        logger.info("Training interrupted by user")
-        running = False  # Signal the training thread to stop
-        training_thread.join(timeout=5)  # Wait for training thread to finish
+        if example_mode:
+            logger.info("Example demonstration interrupted by user")
+        else:
+            logger.info("Training interrupted by user")
+        running = False  # Signal the thread to stop
+        training_thread.join(timeout=5)  # Wait for thread to finish
     except Exception as e:
         logger.error(f"Application error: {str(e)}")
         running = False
@@ -568,5 +703,8 @@ if __name__ == "__main__":
     finally:
         running = False
         logger.info("="*60)
-        logger.info("PPO Cart-Pole Training Session Ended")
+        if example_mode:
+            logger.info("PPO Cart-Pole Example Mode Ended")
+        else:
+            logger.info("PPO Cart-Pole Training Session Ended")
         logger.info("="*60)
