@@ -15,6 +15,15 @@ This project demonstrates a complete reinforcement learning pipeline for the car
 - [License](#license)
 
 ## Quick Start
+By default, the application runs a pretrained model in **example mode**. You'll see a real-time cart-pole simulation with live metrics demonstrating "perfect" cart-pole balancing behavior without requiring training time.
+
+**To enable model training**, flip the `example_mode` setting under `training` to `false`:
+```yaml
+training:
+  # some other settings...
+  example_mode: false
+  # some other settings...
+```
 
 ### Prerequisites
 Requires either Python 3.8+ with dependencies installed or Docker and Docker Compose. Use the appropriate method in the run instructions below.
@@ -38,19 +47,6 @@ Requires either Python 3.8+ with dependencies installed or Docker and Docker Com
    ```
 
 3. Open your web browser and go to: `http://localhost:8080`
-
-The training will start automatically and you'll see:
-- Real-time cart-pole simulation
-- Training metrics and episode rewards
-- Live logging in the console output
-
-### Example Training Run
-
-The `example/` directory contains a complete successful training run that demonstrates the expected behavior:
-- `model.pth`: A pre-trained model that successfully solved the cart-pole problem (achieved 196.15 average reward over 100 episodes)
-- `training-log.log`: Complete training log showing 480 episodes of training with detailed timestep information and final success
-
-This example can serve as a reference for expected training behavior and performance benchmarks.
 
 ## Researcher Notes
 
