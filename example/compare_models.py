@@ -13,9 +13,9 @@ import yaml
 import sys
 import os
 
-# Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
-from network import PPONetwork
+# Add parent directory to path to access src
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from src.network import PPONetwork
 
 def load_original_model():
     """Load the original PyTorch model from checkpoint"""
@@ -46,7 +46,7 @@ def load_torchscript_model():
     """Load TorchScript model"""
     print("📦 Loading TorchScript model (.pt)...")
     
-    model = torch.jit.load('model_deployment.pt')
+    model = torch.jit.load('example/model.pt')
     model.eval()
     
     def predict(state):
@@ -74,7 +74,7 @@ def load_onnx_model():
             pass
         providers.append('CPUExecutionProvider')
         
-        session = ort.InferenceSession('model_deployment.onnx', providers=providers)
+        session = ort.InferenceSession('example/model.onnx', providers=providers)
         input_name = session.get_inputs()[0].name
         output_name = session.get_outputs()[0].name
         

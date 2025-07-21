@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+"""
+Enhanced AI Hub conversion script that creates multiple model formats:
+- TorchScript (.pt) for PyTorch deployment
+- ONNX (.onnx) for onnxruntime-qnn NPU acceleration
+- Optionally compiles for Snapdragon X Elite via AI Hub
+"""
+
 import torch
 import torch.onnx
 import yaml
@@ -7,7 +15,7 @@ import qai_hub as hub
 
 # Add parent directory to Python path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src.network import PPONetwork  # Your model class
+from src.network import PPONetwork
 
 # Create a deployment-friendly wrapper
 class PPODeploymentNetwork(torch.nn.Module):
@@ -19,16 +27,18 @@ class PPODeploymentNetwork(torch.nn.Module):
         action_probs, _ = self.ppo_network(x)
         return action_probs
 
-# ✅ Load Config
 def load_config(path='config.yaml'):
+    """Load configuration from YAML file"""
     if os.path.exists(path):
         with open(path, 'r') as f:
             return yaml.safe_load(f)
     else:
         return {'network': {'input_dim': 4, 'hidden_dim': 128, 'output_dim': 2}}
 
-# ✅ Quantize Model
-def quantize_model(pth_path, config):
+def prepare_model(pth_path, config):
+    """Load and prepare the PPO model for deployment"""
+    print(f"📦 Loading model from: {pth_path}")
+    
     # Load the checkpoint
     checkpoint = torch.load(pth_path, map_location='cpu')
     
@@ -38,25 +48,44 @@ def quantize_model(pth_path, config):
     ppo_model.eval()
     
     # Create deployment wrapper (only action predictions)
-    model_fp32 = PPODeploymentNetwork(ppo_model)
-    model_fp32.eval()
-
-    # For simplicity, let's skip quantization for now as it can be complex with custom models
-    # Instead, we'll use the FP32 model directly
+    model = PPODeploymentNetwork(ppo_model)
+    model.eval()
+    
+    # Create example input
     example_input = torch.rand(1, config['network']['input_dim'])
     
-    # Test the model works
+    # Test the model
     with torch.no_grad():
-        output = model_fp32(example_input)
-        print(f"Model output shape: {output.shape}")
-        print(f"Sample prediction: {output}")
+        output = model(example_input)
+        print(f"✅ Model loaded successfully")
+        print(f"   Input shape: {list(example_input.shape)}")
+        print(f"   Output shape: {list(output.shape)}")
+        print(f"   Sample prediction: {output[0].numpy()}")
+    
+    return model, example_input
 
-    return model_fp32, example_input
-
-# ✅ Export to ONNX
-def export_onnx(model, example_input, path='model_deployment.onnx'):
-    """Export PyTorch model to ONNX format for onnxruntime-qnn"""
+def export_torchscript(model, example_input, path='model_deployment.pt'):
+    """Export model to TorchScript format"""
     try:
+        print(f"📄 Exporting to TorchScript: {path}")
+        traced = torch.jit.trace(model, example_input)
+        torch.jit.save(traced, path)
+        
+        # Verify the exported model works
+        loaded_model = torch.jit.load(path)
+        with torch.no_grad():
+            test_output = loaded_model(example_input)
+        
+        print(f"✅ TorchScript export successful: {path}")
+        return path
+    except Exception as e:
+        print(f"❌ TorchScript export failed: {e}")
+        return None
+
+def export_onnx(model, example_input, path='model_deployment.onnx'):
+    """Export model to ONNX format for onnxruntime-qnn"""
+    try:
+        print(f"📄 Exporting to ONNX: {path}")
         torch.onnx.export(
             model,
             example_input,
@@ -71,104 +100,129 @@ def export_onnx(model, example_input, path='model_deployment.onnx'):
                 'output': {0: 'batch_size'}
             }
         )
-        print(f"Saved ONNX model to: {path}")
+        
+        # Verify the exported model works
+        import onnxruntime as ort
+        session = ort.InferenceSession(path, providers=['CPUExecutionProvider'])
+        test_output = session.run(['output'], {'input': example_input.numpy()})
+        
+        print(f"✅ ONNX export successful: {path}")
         return path
+    except ImportError:
+        print("❌ ONNX export requires 'onnx' and 'onnxruntime' packages")
+        print("   Install with: pip install onnx onnxruntime")
+        return None
     except Exception as e:
-        print(f"❌ Error exporting to ONNX: {e}")
+        print(f"❌ ONNX export failed: {e}")
         return None
 
-# ✅ Export to TorchScript
-def export_torchscript(model, example_input, path='model_deployment.pt'):
-    traced = torch.jit.trace(model, example_input)
-    torch.jit.save(traced, path)
-    print(f"Saved TorchScript model to: {path}")
-    return path
-
-# ✅ Compile for Snapdragon X Elite
-def compile_model(pt_path, input_dim, save_compiled=True):
-    device = hub.Device("Snapdragon X Elite CRD")
-    compile_job = hub.submit_compile_job(
-        model=pt_path,
-        device=device,
-        options="--target_runtime qnn_context_binary",
-        input_specs={"input": (1, input_dim)}
-    )
-    compile_job.wait()
-    print("✔️ Compilation finished")
-    
-    compiled_model = compile_job.get_target_model()
-    
-    # Save the compiled model locally
-    if save_compiled:
+def compile_for_snapdragon(model_path, input_dim, skip_on_error=True):
+    """Compile model for Snapdragon X Elite (optional)"""
+    print("🔧 Compiling for Snapdragon X Elite...")
+    try:
+        device = hub.Device("Snapdragon X Elite CRD")
+        compile_job = hub.submit_compile_job(
+            model=model_path,
+            device=device,
+            options="--target_runtime qnn_context_binary",
+            input_specs={"input": (1, input_dim)}
+        )
+        
+        print("⏳ Waiting for compilation (this may take several minutes)...")
+        compile_job.wait()
+        print("✔️ Compilation finished")
+        
+        compiled_model = compile_job.get_target_model()
+        
+        # Try to save compiled model locally
         try:
-            compiled_model_path = "model_compiled_qnn.bin"
-            with open(compiled_model_path, 'wb') as f:
+            compiled_path = "model_compiled_qnn.bin"
+            compiled_model.seek(0)  # Reset stream position
+            with open(compiled_path, 'wb') as f:
                 f.write(compiled_model.read())
-            print(f"💾 Saved compiled QNN model to: {compiled_model_path}")
+            print(f"💾 Saved compiled QNN model: {compiled_path}")
+            return compiled_path
         except Exception as e:
             print(f"⚠️ Could not save compiled model locally: {e}")
-            print("The compiled model is available through the AI Hub job")
-    
-    return compiled_model
-
-# ✅ Profile the Model
-def profile_model(compiled_model):
-    device = hub.Device("Snapdragon X Elite CRD")
-    profile_job = hub.submit_profile_job(model=compiled_model, device=device)
-    profile_job.wait()
-    print("📊 Profile Results:")
-    try:
-        # Try different methods to get results
-        if hasattr(profile_job, 'get_profile'):
-            results = profile_job.get_profile()
-        elif hasattr(profile_job, 'get_profile_data'):
-            results = profile_job.get_profile_data()
-        else:
-            results = "Profile completed successfully but results format may have changed"
-        print(results)
+            return "AI Hub Remote"
+            
     except Exception as e:
-        print(f"Profile completed but couldn't retrieve detailed results: {e}")
-        print("Check the AI Hub dashboard for detailed profiling results.")
+        if skip_on_error:
+            print(f"⚠️ Snapdragon compilation failed (skipping): {e}")
+            print("   This requires valid AI Hub credentials")
+            return None
+        else:
+            raise e
 
-# ✅ Main Pipeline
-if __name__ == "__main__":
-    print("🚀 Starting AI Hub conversion pipeline...")
+def main():
+    """Main conversion pipeline"""
+    print("🚀 PPO Cart-Pole Model Conversion Pipeline")
+    print("=" * 60)
     
     # Load configuration
     config = load_config()
     print(f"✅ Config loaded: {config['network']}")
     
-    # Load and prepare model
-    print("📦 Loading and preparing model...")
-    model_fp32, example_input = quantize_model("example/model.pth", config)
+    # Prepare model
+    model, example_input = prepare_model("example/model.pth", config)
     
-    # Export to TorchScript
-    print("📄 Exporting to TorchScript...")
-    pt_path = export_torchscript(model_fp32, example_input)
+    # Export to different formats
+    results = {}
     
-    # Export to ONNX (for onnxruntime-qnn)
-    print("📄 Exporting to ONNX...")
-    onnx_path = export_onnx(model_fp32, example_input)
+    # TorchScript export
+    pt_path = export_torchscript(model, example_input)
+    if pt_path:
+        results['torchscript'] = pt_path
     
-    # Compile for Snapdragon X Elite
-    print("🔧 Compiling for Snapdragon X Elite...")
-    try:
-        compiled_model = compile_model(pt_path, config['network']['input_dim'])
+    # ONNX export
+    onnx_path = export_onnx(model, example_input)
+    if onnx_path:
+        results['onnx'] = onnx_path
+    
+    # Optional: Compile for Snapdragon (may take time/require credentials)
+    print("\n" + "-" * 40)
+    compile_choice = input("Compile for Snapdragon X Elite? This requires AI Hub credentials and may take several minutes. (y/N): ").lower()
+    
+    if compile_choice in ['y', 'yes']:
+        if pt_path:
+            qnn_path = compile_for_snapdragon(pt_path, config['network']['input_dim'])
+            if qnn_path:
+                results['qnn'] = qnn_path
+        else:
+            print("⚠️ Cannot compile - TorchScript export failed")
+    
+    # Summary
+    print(f"\n{'='*60}")
+    print("✅ Conversion Pipeline Complete!")
+    print(f"{'='*60}")
+    
+    if results:
+        print("📋 Generated Files:")
+        for format_name, path in results.items():
+            print(f"  • {format_name.upper()}: {path}")
         
-        # Profile the model
-        print("📊 Profiling model performance...")
-        profile_model(compiled_model)
+        print(f"\n💡 Usage Instructions:")
         
-        print("✅ Pipeline completed successfully!")
-        print("\n📋 Generated Files:")
-        print(f"  • TorchScript: {pt_path}")
-        if onnx_path:
-            print(f"  • ONNX: {onnx_path}")
-        print(f"  • Compiled QNN: model_compiled_qnn.bin (if saved)")
+        if 'onnx' in results:
+            print(f"🔸 For NPU acceleration with onnxruntime-qnn:")
+            print(f"   pip install onnxruntime-qnn")
+            print(f"   python test_onnx_model.py")
         
-    except Exception as e:
-        print(f"❌ Error during AI Hub compilation: {e}")
-        print("This might require valid AI Hub credentials and device access.")
-        print(f"✅ TorchScript model was successfully created at: {pt_path}")
-        if onnx_path:
-            print(f"✅ ONNX model was successfully created at: {onnx_path}")
+        if 'torchscript' in results:
+            print(f"🔸 For PyTorch deployment:")
+            print(f"   python test_model.py")
+        
+        if 'qnn' in results:
+            print(f"🔸 For direct QNN runtime (advanced):")
+            print(f"   Use {results['qnn']} with Qualcomm QNN SDK")
+    
+    else:
+        print("❌ No models were successfully exported")
+        return False
+    
+    return True
+
+if __name__ == "__main__":
+    success = main()
+    if not success:
+        sys.exit(1)
