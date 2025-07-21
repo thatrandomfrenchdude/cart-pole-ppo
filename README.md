@@ -54,8 +54,12 @@ Run the tests to ensure everything is working correctly. The tests cover unit te
 
 2. Run the tests:
    ```bash
+   # On Linux/macOS
    chmod +x scripts/run_tests.sh
    ./scripts/run_tests.sh all
+   
+   # On Windows (PowerShell)
+   .\scripts\run_tests.ps1 all
    ```
 
 ### Run the Application
@@ -140,7 +144,8 @@ The project is organized as follows:
 ```
 cart-pole-ppo/
 ├── scripts/                      # Utility scripts
-│   └── run_tests.sh              # Script to run all tests
+│   ├── run_tests.sh              # Script to run all tests (Linux/macOS)
+│   └── run_tests.ps1             # Script to run all tests (Windows PowerShell)
 ├── src/
 │   ├── visualization/            # Frontend files (HTML, CSS, JS)
 │   │   ├── index.html            # Main HTML page
@@ -179,6 +184,13 @@ pip install -r requirements-test.txt
 
 # Run all tests
 pytest
+
+# Or use the test runner scripts:
+# Linux/macOS
+./scripts/run_tests.sh all
+
+# Windows PowerShell
+.\scripts\run_tests.ps1 all
 
 # Run tests with coverage report
 pytest --cov=src --cov-report=html
