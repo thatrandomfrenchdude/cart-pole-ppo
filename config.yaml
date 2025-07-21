@@ -1,5 +1,4 @@
 # Cart-Pole PPO Configuration
-# Al  example_model_path: "example/model.pth" # Path to the example trained model (.pth, .pt, or .onnx supported) modifiable hyperparameters for the reinforcement learning system
 
 # Environment Physics Parameters
 environment:
