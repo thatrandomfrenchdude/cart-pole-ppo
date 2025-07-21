@@ -1,4 +1,5 @@
 import torch
+import torch.onnx
 import yaml
 import os
 import sys
@@ -52,6 +53,30 @@ def quantize_model(pth_path, config):
 
     return model_fp32, example_input
 
+# ✅ Export to ONNX
+def export_onnx(model, example_input, path='model_deployment.onnx'):
+    """Export PyTorch model to ONNX format for onnxruntime-qnn"""
+    try:
+        torch.onnx.export(
+            model,
+            example_input,
+            path,
+            export_params=True,
+            opset_version=11,
+            do_constant_folding=True,
+            input_names=['input'],
+            output_names=['output'],
+            dynamic_axes={
+                'input': {0: 'batch_size'},
+                'output': {0: 'batch_size'}
+            }
+        )
+        print(f"Saved ONNX model to: {path}")
+        return path
+    except Exception as e:
+        print(f"❌ Error exporting to ONNX: {e}")
+        return None
+
 # ✅ Export to TorchScript
 def export_torchscript(model, example_input, path='model_deployment.pt'):
     traced = torch.jit.trace(model, example_input)
@@ -60,7 +85,7 @@ def export_torchscript(model, example_input, path='model_deployment.pt'):
     return path
 
 # ✅ Compile for Snapdragon X Elite
-def compile_model(pt_path, input_dim):
+def compile_model(pt_path, input_dim, save_compiled=True):
     device = hub.Device("Snapdragon X Elite CRD")
     compile_job = hub.submit_compile_job(
         model=pt_path,
@@ -70,7 +95,21 @@ def compile_model(pt_path, input_dim):
     )
     compile_job.wait()
     print("✔️ Compilation finished")
-    return compile_job.get_target_model()
+    
+    compiled_model = compile_job.get_target_model()
+    
+    # Save the compiled model locally
+    if save_compiled:
+        try:
+            compiled_model_path = "model_compiled_qnn.bin"
+            with open(compiled_model_path, 'wb') as f:
+                f.write(compiled_model.read())
+            print(f"💾 Saved compiled QNN model to: {compiled_model_path}")
+        except Exception as e:
+            print(f"⚠️ Could not save compiled model locally: {e}")
+            print("The compiled model is available through the AI Hub job")
+    
+    return compiled_model
 
 # ✅ Profile the Model
 def profile_model(compiled_model):
@@ -107,6 +146,10 @@ if __name__ == "__main__":
     print("📄 Exporting to TorchScript...")
     pt_path = export_torchscript(model_fp32, example_input)
     
+    # Export to ONNX (for onnxruntime-qnn)
+    print("📄 Exporting to ONNX...")
+    onnx_path = export_onnx(model_fp32, example_input)
+    
     # Compile for Snapdragon X Elite
     print("🔧 Compiling for Snapdragon X Elite...")
     try:
@@ -117,8 +160,15 @@ if __name__ == "__main__":
         profile_model(compiled_model)
         
         print("✅ Pipeline completed successfully!")
+        print("\n📋 Generated Files:")
+        print(f"  • TorchScript: {pt_path}")
+        if onnx_path:
+            print(f"  • ONNX: {onnx_path}")
+        print(f"  • Compiled QNN: model_compiled_qnn.bin (if saved)")
         
     except Exception as e:
         print(f"❌ Error during AI Hub compilation: {e}")
         print("This might require valid AI Hub credentials and device access.")
         print(f"✅ TorchScript model was successfully created at: {pt_path}")
+        if onnx_path:
+            print(f"✅ ONNX model was successfully created at: {onnx_path}")
