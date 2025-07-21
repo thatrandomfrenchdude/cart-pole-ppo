@@ -18,7 +18,7 @@ def create_app(current_state, reward_history, episode_rewards):
 
     @app.route('/styles.css')
     def styles():
-        with open('styles.css', 'r') as f:
+        with open('src/visualization/styles.css', 'r') as f:
             return f.read(), 200, {'Content-Type': 'text/css'}
 
     @app.route('/visualization.js')
