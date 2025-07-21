@@ -21,7 +21,7 @@ except ImportError:
 class ONNXCartPoleAgent:
     """Cart-Pole agent using ONNX model with potential QNN acceleration"""
     
-    def __init__(self, onnx_model_path="model_deployment.onnx", use_qnn=False):
+    def __init__(self, onnx_model_path="example/model.onnx", use_qnn=False):
         """
         Initialize the ONNX-based agent
         
@@ -121,7 +121,7 @@ class ONNXCartPoleAgent:
 @pytest.fixture
 def onnx_model_path():
     """Return path to ONNX model, skip if not available"""
-    model_path = "model_deployment.onnx"
+    model_path = "example/model.onnx"
     if not os.path.exists(model_path):
         pytest.skip(f"ONNX model not found: {model_path}")
     return model_path
@@ -186,10 +186,10 @@ def test_onnx_qnn_acceleration(onnx_model_path):
 
 def test_onnx_model_consistency():
     """Test that ONNX model produces consistent results"""
-    if not os.path.exists("model_deployment.onnx"):
+    if not os.path.exists("example/model.onnx"):
         pytest.skip("ONNX model not available")
         
-    agent = ONNXCartPoleAgent("model_deployment.onnx", use_qnn=False)
+    agent = ONNXCartPoleAgent("example/model.onnx", use_qnn=False)
     
     test_state = [0.1, 0.5, 0.1, 0.2]
     
@@ -202,18 +202,18 @@ def test_onnx_model_consistency():
 # Legacy test function for standalone execution
 def test_onnx_model():
     """Legacy test function for standalone execution"""
-    if not os.path.exists("model_deployment.onnx"):
-        print("❌ ONNX model file 'model_deployment.onnx' not found!")
+    if not os.path.exists("example/model.onnx"):
+        print("❌ ONNX model file 'example/model.onnx' not found!")
         print("💡 Run the model conversion script first:")
         print("   python convert_model.py")
-        return False
+        pytest.skip("ONNX model file 'example/model.onnx' not found!")
     
     print("🚀 Testing ONNX Cart-Pole Model")
     print("=" * 50)
     
     try:
         # Test with CPU provider
-        agent = ONNXCartPoleAgent("model_deployment.onnx", use_qnn=False)
+        agent = ONNXCartPoleAgent("example/model.onnx", use_qnn=False)
         test_state = [0.1, 0.5, 0.1, 0.2]
         action = agent.act(test_state)
         print(f"✅ CPU Provider: Action = {action}")
@@ -224,7 +224,7 @@ def test_onnx_model():
     
     try:
         # Test with QNN provider if available
-        agent_qnn = ONNXCartPoleAgent("model_deployment.onnx", use_qnn=True)
+        agent_qnn = ONNXCartPoleAgent("example/model.onnx", use_qnn=True)
         action_qnn = agent_qnn.act(test_state)
         print(f"✅ QNN Provider: Action = {action_qnn}")
         success_qnn = True
@@ -234,10 +234,10 @@ def test_onnx_model():
     
     if success_cpu or success_qnn:
         print(f"\n✅ ONNX model testing completed successfully!")
-        return True
+        assert True  # Test passes if either provider works
     else:
         print(f"\n❌ ONNX model testing failed!")
-        return False
+        pytest.fail("Both CPU and QNN providers failed")
 
 
 def usage_example():
@@ -246,7 +246,7 @@ def usage_example():
     print("💡 Usage Example in Game Loop:")
     print("""
 # Initialize agent
-agent = ONNXCartPoleAgent("model_deployment.onnx", use_qnn=True)
+agent = ONNXCartPoleAgent("example/model.onnx", use_qnn=True)
 
 # In your game loop:
 while game_running:

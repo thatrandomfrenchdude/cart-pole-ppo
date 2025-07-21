@@ -16,7 +16,7 @@ sys.path.insert(0, project_root)
 @pytest.fixture
 def torchscript_model_path():
     """Return path to TorchScript model, skip if not available"""
-    model_path = "model_deployment.pt"
+    model_path = "example/model.pt"
     if not os.path.exists(model_path):
         pytest.skip(f"TorchScript model not found: {model_path}")
     return model_path
@@ -67,9 +67,13 @@ def test_torchscript_model_consistency(torchscript_model_path):
 
 # Legacy test function for standalone execution
 
-def test_torchscript_model(model_path="model_deployment.pt"):
+def test_torchscript_model(model_path="example/model.pt"):
     """Test the converted TorchScript model"""
     print(f"🧪 Testing TorchScript model: {model_path}")
+    
+    # Skip test if model file doesn't exist
+    if not os.path.exists(model_path):
+        pytest.skip(f"TorchScript model file '{model_path}' not found. Run model conversion first.")
     
     try:
         # Load the TorchScript model
@@ -105,11 +109,13 @@ def test_torchscript_model(model_path="model_deployment.pt"):
         print(f"Model input shape: {list(input_tensor.shape)}")
         print(f"Model output shape: {list(action_probs.shape)}")
         
-        return True
+        # Use assertions instead of returning True
+        assert action_probs.shape == (1, 2), f"Expected output shape (1, 2), got {action_probs.shape}"
+        assert all(p >= 0 for p in probs), "All probabilities should be non-negative"
         
     except Exception as e:
         print(f"❌ Error testing TorchScript model: {e}")
-        return False
+        pytest.fail(f"TorchScript model test failed: {e}")
 
 if __name__ == "__main__":
     test_torchscript_model()
