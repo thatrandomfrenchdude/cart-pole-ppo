@@ -1,4 +1,8 @@
-# Cart-Pole PPO Reinforcement Learning with Visualization
+# Proxmial Policy Optimization Visualized with Cart-Pole
+
+<p align="center">
+   <img src="assets/cartpole.gif" alt="Cart-Pole PPO Visualization">
+</p>
 
 This project demonstrates a complete reinforcement learning pipeline for the cart-pole balancing problem using Proximal Policy Optimization (PPO). It includes a custom cart-pole environment, a PPO agent implemented in PyTorch, and a web-based visualization interface to observe training progress in real-time.
 
