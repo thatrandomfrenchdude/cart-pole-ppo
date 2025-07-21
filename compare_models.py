@@ -172,8 +172,8 @@ def main():
     # Check which files exist
     files_status = {
         'Original (.pth)': os.path.exists('example/model.pth'),
-        'TorchScript (.pt)': os.path.exists('model_deployment.pt'),
-        'ONNX (.onnx)': os.path.exists('model_deployment.onnx'),
+        'TorchScript (.pt)': os.path.exists('example/model.pt'),
+        'ONNX (.onnx)': os.path.exists('example/model.onnx'),
     }
     
     print("📂 Available Model Files:")
