@@ -26,7 +26,7 @@ def load_original_model():
         config = yaml.safe_load(f)
     
     # Load checkpoint
-    checkpoint = torch.load('example/model.pth', map_location='cpu')
+    checkpoint = torch.load('example/model.pth', map_location='cpu', weights_only=False)
     
     # Create and load model
     model = PPONetwork(config)

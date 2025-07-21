@@ -40,7 +40,7 @@ def prepare_model(pth_path, config):
     print(f"📦 Loading model from: {pth_path}")
     
     # Load the checkpoint
-    checkpoint = torch.load(pth_path, map_location='cpu')
+    checkpoint = torch.load(pth_path, map_location='cpu', weights_only=False)
     
     # Load the original PPO network
     ppo_model = PPONetwork(config)

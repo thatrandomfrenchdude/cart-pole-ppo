@@ -7,7 +7,11 @@ import torch
 import numpy as np
 import os
 import logging
-from .network import PPONetwork
+
+try:
+    from .network import PPONetwork
+except ImportError:
+    from network import PPONetwork
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +40,7 @@ class ModelLoader:
         """Load original PyTorch checkpoint (.pth)"""
         logger.info(f"Loading PyTorch checkpoint: {model_path}")
         
-        checkpoint = torch.load(model_path, map_location='cpu')
+        checkpoint = torch.load(model_path, map_location='cpu', weights_only=False)
         model = PPONetwork(config)
         model.load_state_dict(checkpoint['network_state_dict'])
         model.eval()
