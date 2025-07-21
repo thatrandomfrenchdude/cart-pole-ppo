@@ -34,7 +34,7 @@ training:
   model_save_path: "models/ppo_cartpole.pth"  # Path to save/load the trained model
   save_frequency: 50                    # Save model every N episodes (Note: Auto-saves are more frequent early in training)
   example_mode: true                    # Run pre-trained model from example directory
-  example_model_path: "models/best-model-380-runs-072025.pth" # "example/model.pth"  # Path to the example trained model
+  example_model_path: "example/model.pth"  # Path to the example trained model
   solved_reward_threshold: 195.0        # Average reward threshold to consider problem solved
   solved_episodes_window: 100           # Number of consecutive episodes to average for solving criteria
   stop_when_solved: true                # Whether to stop training when the problem is solved
