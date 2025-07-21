@@ -1,6 +1,12 @@
 import time
 import logging
 import numpy as np
+import os
+
+try:
+    from .model_loader import ExampleModeAgent
+except ImportError:
+    from model_loader import ExampleModeAgent
 
 
 logger = logging.getLogger(__name__)
@@ -169,31 +175,48 @@ def training_loop(env, agent, simulation_speed, summary_frequency, update_freque
         save_training_state()
 
 
-def example_mode_loop(env, agent, simulation_speed, example_model_path, current_state, running_flag):
+def example_mode_loop(env, agent, simulation_speed, example_model_path, current_state, running_flag, config=None):
     """
     Example mode loop that runs a pre-trained model for demonstration.
+    Supports .pth, .pt (TorchScript), and .onnx formats.
     Training metrics and episode rewards are frozen, but live state is updated.
     
     Args:
         env: CartPole environment
-        agent: PPO agent
+        agent: PPO agent (not used in example mode, kept for compatibility)
         simulation_speed: Sleep time between steps
-        example_model_path: Path to the pre-trained model
+        example_model_path: Path to the pre-trained model (.pth, .pt, or .onnx)
         current_state: Shared state dict for web interface
         running_flag: Shared running flag dict
+        config: Configuration dict (required for .pth format)
     """
     logger.info("="*60)
     logger.info("🎬 EXAMPLE MODE - Running Pre-trained Model")
     logger.info("="*60)
     logger.info(f"Loading model from: {example_model_path}")
     
-    # Load the pre-trained model
+    # Check if model file exists
+    if not os.path.exists(example_model_path):
+        logger.error(f"Model file not found: {example_model_path}")
+        logger.error("Cannot run example mode without a valid model")
+        return
+    
+    # Load the pre-trained model using multi-format loader
     try:
-        training_state = agent.load_model(example_model_path)
-        logger.info("Pre-trained model loaded successfully")
+        example_agent = ExampleModeAgent(example_model_path, config)
         
+        format_info = example_agent.get_format_info()
+        logger.info(f"✅ Model loaded successfully")
+        logger.info(f"   Format: {format_info['format'].upper()}")
+        logger.info(f"   Supports value estimation: {format_info['supports_value_estimation']}")
+        
+        # Get training state if available (only for .pth format)
+        training_state = example_agent.get_training_state()
         if training_state and training_state['episode'] > 0:
-            logger.info(f"Model was trained for {training_state['episode']} episodes")
+            logger.info(f"   Model was trained for {training_state['episode']} episodes")
+        else:
+            logger.info("   No training history available (deployment format)")
+            
     except Exception as e:
         logger.error(f"Failed to load example model: {e}")
         logger.error("Cannot run example mode without a valid model")
@@ -213,11 +236,11 @@ def example_mode_loop(env, agent, simulation_speed, example_model_path, current_
             done = False
             timestep_in_episode = 0
             
-            logger.info(f"Starting demonstration episode {episode}")
+            logger.info(f"Starting demonstration episode {episode} (Format: {format_info['format'].upper()})")
             
             while not done and running_flag['value']:
                 # Use the trained model to select action (no exploration)
-                action, _, _ = agent.select_action(state)
+                action, log_prob, value = example_agent.select_action(state)
                 next_state, reward, done = env.step(action)
                 
                 # Update current state for live visualization (keep these dynamic)
@@ -237,7 +260,8 @@ def example_mode_loop(env, agent, simulation_speed, example_model_path, current_
                 
                 # Log current state less frequently for cleaner output
                 if timestep_in_episode % 20 == 0 or done:
-                    logger.info(f"Episode {episode}, Step {timestep_in_episode}: Pos={next_state[0]:.3f}, Angle={next_state[2]:.3f}, Reward={reward}")
+                    value_str = f", Value={value:.3f}" if format_info['supports_value_estimation'] else ""
+                    logger.info(f"Episode {episode}, Step {timestep_in_episode}: Pos={next_state[0]:.3f}, Angle={next_state[2]:.3f}, Reward={reward}{value_str}")
                 
                 time.sleep(simulation_speed)
             

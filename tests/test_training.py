@@ -5,7 +5,7 @@ import pytest
 import numpy as np
 from collections import deque
 from unittest.mock import Mock, patch, MagicMock
-from training import training_loop, example_mode_loop
+from src.training import training_loop, example_mode_loop
 
 
 class TestTrainingLoop:
@@ -212,18 +212,26 @@ class TestTrainingLoop:
 
 class TestExampleModeLoop:
     
-    def test_example_mode_initialization(self, sample_config, mock_shared_state):
+    @patch('src.training.ExampleModeAgent')
+    @patch('os.path.exists')
+    def test_example_mode_initialization(self, mock_exists, mock_example_agent_class, sample_config, mock_shared_state):
         """Test example mode loop initialization."""
         current_state, reward_history, episode_rewards, running_flag = mock_shared_state
+        
+        # Mock file exists check
+        mock_exists.return_value = True
         
         # Mock environment and agent
         mock_env = Mock()
         mock_env.reset.return_value = np.array([0.0, 0.0, 0.01, 0.0])  # Slight initial angle
         mock_env.step.return_value = (np.array([0.01, 0.1, 0.005, -0.1]), 1.0, False)
         
-        mock_agent = Mock()
-        mock_agent.select_action.return_value = (1, -0.693, 0.8)  # Good action
-        mock_agent.load_model.return_value = True  # Model loaded successfully
+        # Mock ExampleModeAgent
+        mock_example_agent = Mock()
+        mock_example_agent.get_format_info.return_value = {'format': 'pth', 'supports_value_estimation': True}
+        mock_example_agent.get_training_state.return_value = {'episode': 100}
+        mock_example_agent.select_action.return_value = (1, -0.693, 0.8)
+        mock_example_agent_class.return_value = mock_example_agent
         
         # Stop immediately by setting the flag to False
         running_flag['value'] = False
@@ -231,26 +239,30 @@ class TestExampleModeLoop:
         # Run example mode
         example_mode_loop(
             env=mock_env,
-            agent=mock_agent,
+            agent=None,  # Not used anymore
             simulation_speed=0.01,
             example_model_path="example/model.pth",
             current_state=current_state,
-            running_flag=running_flag
+            running_flag=running_flag,
+            config=sample_config
         )
         
-        # Verify model loading was attempted
-        mock_agent.load_model.assert_called_once_with("example/model.pth")
+        # Verify ExampleModeAgent was created
+        mock_example_agent_class.assert_called_once_with("example/model.pth", sample_config)
     
-    @patch('training.logger')
-    def test_example_mode_model_loading_failure(self, mock_logger, sample_config, mock_shared_state):
+    @patch('src.training.ExampleModeAgent')
+    @patch('os.path.exists')  
+    @patch('src.training.logger')
+    def test_example_mode_model_loading_failure(self, mock_logger, mock_exists, mock_example_agent_class, sample_config, mock_shared_state):
         """Test example mode with model loading failure."""
         current_state, reward_history, episode_rewards, running_flag = mock_shared_state
+        
+        # Mock file doesn't exist
+        mock_exists.return_value = False
         
         # Mock environment and agent
         mock_env = Mock()
         mock_agent = Mock()
-        # Make load_model raise an exception to trigger the error logging
-        mock_agent.load_model.side_effect = Exception("Model loading failed")
         
         # Stop immediately
         running_flag['value'] = False
@@ -262,15 +274,21 @@ class TestExampleModeLoop:
             simulation_speed=0.01,
             example_model_path="nonexistent_model.pth",
             current_state=current_state,
-            running_flag=running_flag
+            running_flag=running_flag,
+            config=sample_config
         )
         
-        # Verify error was logged
+        # Verify error was logged (function should return early)
         mock_logger.error.assert_called()
     
-    def test_example_mode_continuous_running(self, sample_config, mock_shared_state):
+    @patch('src.training.ExampleModeAgent')
+    @patch('os.path.exists')
+    def test_example_mode_continuous_running(self, mock_exists, mock_example_agent_class, sample_config, mock_shared_state):
         """Test that example mode runs continuously with good performance."""
         current_state, reward_history, episode_rewards, running_flag = mock_shared_state
+        
+        # Mock file exists check
+        mock_exists.return_value = True
         
         # Mock environment - simulate good cart-pole balance
         mock_env = Mock()
@@ -296,9 +314,11 @@ class TestExampleModeLoop:
         mock_env.reset.return_value = balanced_states[0]
         mock_env.step.side_effect = mock_step
         
-        # Mock agent - simulate good policy
-        mock_agent = Mock()
-        mock_agent.load_model.return_value = {'episode': 100, 'total_timesteps': 10000}
+        # Mock ExampleModeAgent - simulate good policy  
+        mock_example_agent = Mock()
+        mock_example_agent.get_format_info.return_value = {'format': 'pth', 'supports_value_estimation': True}
+        mock_example_agent.get_training_state.return_value = {'episode': 100, 'total_timesteps': 10000}
+        mock_example_agent_class.return_value = mock_example_agent
         
         # Agent makes good decisions
         def smart_action_selection(state):
@@ -307,7 +327,7 @@ class TestExampleModeLoop:
             action = 1 if angle > 0 else 0
             return action, -0.693, 0.9  # High value for good states
         
-        mock_agent.select_action.side_effect = smart_action_selection
+        mock_example_agent.select_action.side_effect = smart_action_selection
         
         # Stop after limited steps for testing
         step_count_limit = 3  # Run just a few steps
@@ -327,22 +347,28 @@ class TestExampleModeLoop:
         # Run example mode
         example_mode_loop(
             env=mock_env,
-            agent=mock_agent,
+            agent=None,  # Not used anymore
             simulation_speed=0.001,  # Fast for testing
             example_model_path="example_model.pth",
             current_state=current_state,
-            running_flag=running_flag
+            running_flag=running_flag,
+            config=sample_config
         )
         
         # Verify good performance metrics
         assert current_state['position'] == 0.1  # Should be updated from last step
         assert current_state['angle'] == 0.05    # Should be updated from last step  
         assert mock_env.step.call_count > 0
-        assert mock_agent.select_action.call_count > 0
+        assert mock_example_agent.select_action.call_count > 0
     
-    def test_example_mode_state_updates(self, sample_config, mock_shared_state):
+    @patch('src.training.ExampleModeAgent')
+    @patch('os.path.exists')
+    def test_example_mode_state_updates(self, mock_exists, mock_example_agent_class, sample_config, mock_shared_state):
         """Test that example mode updates state correctly."""
         current_state, reward_history, episode_rewards, running_flag = mock_shared_state
+        
+        # Mock file exists check
+        mock_exists.return_value = True
         
         # Mock environment
         mock_env = Mock()
@@ -352,10 +378,12 @@ class TestExampleModeLoop:
         mock_env.reset.return_value = np.array([0.0, 0.0, 0.0, 0.0])
         mock_env.step.return_value = (test_state, test_reward, False)
         
-        # Mock agent
-        mock_agent = Mock()
-        mock_agent.load_model.return_value = {'episode': 100, 'total_timesteps': 10000}
-        mock_agent.select_action.return_value = (1, -0.693, 0.8)
+        # Mock ExampleModeAgent
+        mock_example_agent = Mock()
+        mock_example_agent.get_format_info.return_value = {'format': 'pth', 'supports_value_estimation': True}
+        mock_example_agent.get_training_state.return_value = {'episode': 100, 'total_timesteps': 10000}
+        mock_example_agent.select_action.return_value = (1, -0.693, 0.8)
+        mock_example_agent_class.return_value = mock_example_agent
         
         # Stop after one step
         step_count = 0
@@ -370,11 +398,12 @@ class TestExampleModeLoop:
         # Run example mode
         example_mode_loop(
             env=mock_env,
-            agent=mock_agent,
+            agent=None,  # Not used anymore
             simulation_speed=0.001,
             example_model_path="test_model.pth",
             current_state=current_state,
-            running_flag=running_flag
+            running_flag=running_flag,
+            config=sample_config
         )
         
         # Verify state was updated (reward is not updated in example mode)

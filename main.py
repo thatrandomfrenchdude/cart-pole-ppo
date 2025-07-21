@@ -56,11 +56,10 @@ def main():
         example_rewards = [195.0] * 100  # Show that this model is already solved
         reward_history.extend(example_rewards)
         episode_rewards.extend(example_rewards)
-        
-        # Start example mode in a separate thread
+          # Start example mode in a separate thread
         training_thread = threading.Thread(
             target=example_mode_loop,
-            args=(env, agent, config['training']['simulation_speed'], example_model_path, current_state, running_flag),
+            args=(env, agent, config['training']['simulation_speed'], example_model_path, current_state, running_flag, config),
             daemon=False
         )
         training_thread.start()

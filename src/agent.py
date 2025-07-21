@@ -144,7 +144,7 @@ class PPOAgent:
     def load_model(self, filepath):
         """Load the model state dict, optimizer state, and training progress."""
         if os.path.exists(filepath):
-            checkpoint = torch.load(filepath, map_location='cpu')
+            checkpoint = torch.load(filepath, map_location='cpu', weights_only=False)
             self.network.load_state_dict(checkpoint['network_state_dict'])
             self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
             

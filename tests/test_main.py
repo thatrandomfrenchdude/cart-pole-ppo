@@ -355,8 +355,8 @@ class TestMain:
         def capture_thread_args(*args, **kwargs):
             nonlocal captured_running_flag
             if 'args' in kwargs:
-                # Find running_flag in the arguments (it's the last one)
-                captured_running_flag = kwargs['args'][-1]
+                # Find running_flag in the arguments (it's the second to last one, before config)
+                captured_running_flag = kwargs['args'][-2]
             mock_thread = Mock()
             return mock_thread
         
