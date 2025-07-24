@@ -23,6 +23,10 @@ class PPOAgent:
         self.eps_clip = ppo_config['clip_ratio']
         self.k_epochs = ppo_config['update_epochs']
         
+        # Determine if this is a continuous action environment
+        game_type = config['game']['environment'].lower()
+        self.continuous_action = (game_type == 'pendulum')
+        
         self.states = []
         self.actions = []
         self.rewards = []
@@ -32,13 +36,24 @@ class PPOAgent:
     
     def select_action(self, state):
         state = torch.FloatTensor(state).unsqueeze(0)
-        action_probs, value = self.network(state)
         
-        dist = torch.distributions.Categorical(action_probs)
-        action = dist.sample()
-        log_prob = dist.log_prob(action)
-        
-        return action.item(), log_prob.item(), value.item()
+        if self.continuous_action:
+            action_mean, action_std, value = self.network(state)
+            dist = torch.distributions.Normal(action_mean, action_std)
+            action = dist.sample()
+            log_prob = dist.log_prob(action).sum()
+            
+            # Clip action to [-1, 1] range
+            action_clipped = torch.clamp(action, -1.0, 1.0)
+            
+            return action_clipped.detach().numpy().flatten(), log_prob.item(), value.item()
+        else:
+            action_probs, value = self.network(state)
+            dist = torch.distributions.Categorical(action_probs)
+            action = dist.sample()
+            log_prob = dist.log_prob(action)
+            
+            return action.item(), log_prob.item(), value.item()
     
     def store_transition(self, state, action, reward, log_prob, value, done):
         self.states.append(state)
@@ -63,21 +78,32 @@ class PPOAgent:
         
         # Normalize rewards
         discounted_rewards = torch.FloatTensor(discounted_rewards)
-        discounted_rewards = (discounted_rewards - discounted_rewards.mean()) / (discounted_rewards.std() + 1e-8)
+        if len(discounted_rewards) > 1 and discounted_rewards.std() > 1e-8:
+            discounted_rewards = (discounted_rewards - discounted_rewards.mean()) / (discounted_rewards.std() + 1e-8)
+        # If only one reward or no variance, don't normalize
         
         # Convert lists to tensors efficiently
         states = torch.FloatTensor(np.array(self.states))
-        actions = torch.LongTensor(np.array(self.actions))
         old_log_probs = torch.FloatTensor(np.array(self.log_probs))
         old_values = torch.FloatTensor(np.array(self.values))
+        
+        if self.continuous_action:
+            actions = torch.FloatTensor(np.array(self.actions))
+        else:
+            actions = torch.LongTensor(np.array(self.actions))
         
         advantages = discounted_rewards - old_values
         
         # PPO update
         for _ in range(self.k_epochs):
-            action_probs, values = self.network(states)
-            dist = torch.distributions.Categorical(action_probs)
-            new_log_probs = dist.log_prob(actions)
+            if self.continuous_action:
+                action_mean, action_std, values = self.network(states)
+                dist = torch.distributions.Normal(action_mean, action_std)
+                new_log_probs = dist.log_prob(actions).sum(dim=-1)
+            else:
+                action_probs, values = self.network(states)
+                dist = torch.distributions.Categorical(action_probs)
+                new_log_probs = dist.log_prob(actions)
             
             # Calculate ratio
             ratio = torch.exp(new_log_probs - old_log_probs)

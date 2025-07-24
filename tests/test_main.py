@@ -18,18 +18,25 @@ class TestMain:
     @patch('main.create_app')
     @patch('main.threading.Thread')
     @patch('main.PPOAgent')
-    @patch('main.CartPoleEnv')
+    @patch('main.EnvironmentFactory')
     @patch('main.setup_logging')
     @patch('main.load_config')
     def test_main_example_mode(self, mock_load_config, mock_setup_logging, 
-                              mock_cart_pole_env, mock_ppo_agent, 
+                              mock_env_factory, mock_ppo_agent, 
                               mock_thread, mock_create_app):
         """Test main function in example mode."""
         # Configure mocks
         example_config = {
+            'game': {'environment': 'cartpole'},
+            'network': {'input_dim': 4, 'output_dim': 2},
             'training': {
                 'example_mode': True,
-                'example_model_path': 'example/model.pth',
+                'example_model_paths': {
+                    'cartpole': 'example/model.pth',
+                    'mountain_car': 'example/mountain_car_model.pth',
+                    'pendulum': 'example/pendulum_model.pth',
+                    'acrobot': 'example/acrobot_model.pth'
+                },
                 'simulation_speed': 0.01,
                 'reward_history_length': 100,
                 'episode_history_length': 50
@@ -49,6 +56,10 @@ class TestMain:
         mock_load_config.return_value = example_config
         mock_setup_logging.return_value = ('test.log', 'overwrite mode')
         
+        # Mock environment factory
+        mock_env_factory.get_environment_specs.return_value = {'input_dim': 4, 'output_dim': 2}
+        mock_env_factory.create_environment.return_value = Mock()
+        
         # Mock Flask app
         mock_app = Mock()
         mock_create_app.return_value = mock_app
@@ -67,7 +78,7 @@ class TestMain:
         # Verify example mode initialization
         mock_load_config.assert_called_once()
         mock_setup_logging.assert_called_once()
-        mock_cart_pole_env.assert_called_once()
+        mock_env_factory.create_environment.assert_called_once()
         mock_ppo_agent.assert_called_once()
         
         # Verify thread was created and started
@@ -86,23 +97,35 @@ class TestMain:
     @patch('main.create_app')
     @patch('main.threading.Thread')
     @patch('main.PPOAgent')
-    @patch('main.CartPoleEnv')
+    @patch('main.EnvironmentFactory')
     @patch('main.setup_logging')
     @patch('main.load_config')
     @patch('main.os.path.exists')
     def test_main_training_mode_new_model(self, mock_exists, mock_load_config, 
-                                         mock_setup_logging, mock_cart_pole_env, 
+                                         mock_setup_logging, mock_env_factory, 
                                          mock_ppo_agent, mock_thread, mock_create_app):
         """Test main function in training mode with new model."""
         # Configure mocks
         training_config = {
+            'game': {'environment': 'cartpole'},
+            'network': {'input_dim': 4, 'output_dim': 2},
             'training': {
                 'example_mode': False,
-                'model_save_path': 'models/new_model.pth',
+                'model_save_paths': {
+                    'cartpole': 'models/new_model.pth',
+                    'mountain_car': 'models/mountain_car_model.pth',
+                    'pendulum': 'models/pendulum_model.pth',
+                    'acrobot': 'models/acrobot_model.pth'
+                },
                 'save_frequency': 50,
                 'reward_history_length': 1000,
                 'episode_history_length': 100,
-                'solved_reward_threshold': 195.0,
+                'solved_reward_thresholds': {
+                    'cartpole': 195.0,
+                    'mountain_car': -110.0,
+                    'pendulum': -200.0,
+                    'acrobot': -100.0
+                },
                 'solved_episodes_window': 100,
                 'stop_when_solved': True,
                 'simulation_speed': 0.01
@@ -124,6 +147,10 @@ class TestMain:
         mock_setup_logging.return_value = ('training.log', 'overwrite mode')
         mock_exists.return_value = False  # New model (doesn't exist)
         
+        # Mock environment factory
+        mock_env_factory.get_environment_specs.return_value = {'input_dim': 4, 'output_dim': 2}
+        mock_env_factory.create_environment.return_value = Mock()
+        
         # Mock Flask app
         mock_app = Mock()
         mock_create_app.return_value = mock_app
@@ -143,7 +170,7 @@ class TestMain:
         mock_setup_logging.assert_called_once_with(training_config, append_mode=False)
         
         # Verify environment and agent creation
-        mock_cart_pole_env.assert_called_once_with(training_config)
+        mock_env_factory.create_environment.assert_called_once_with(training_config)
         mock_ppo_agent.assert_called_once_with(training_config)
         
         # Verify training thread was created with correct arguments
@@ -155,26 +182,36 @@ class TestMain:
     @patch('main.create_app')
     @patch('main.threading.Thread')
     @patch('main.PPOAgent')
-    @patch('main.CartPoleEnv')
+    @patch('main.EnvironmentFactory')
     @patch('main.setup_logging')
     @patch('main.load_config')
     @patch('main.os.path.exists')
     def test_main_training_mode_resume_model(self, mock_exists, mock_load_config, 
-                                           mock_setup_logging, mock_cart_pole_env, 
+                                           mock_setup_logging, mock_env_factory, 
                                            mock_ppo_agent, mock_thread, mock_create_app):
         """Test main function in training mode resuming existing model."""
         # Configure mocks
         training_config = {
+            'game': {'environment': 'cartpole'},
             'training': {
                 'example_mode': False,
-                'model_save_path': 'models/existing_model.pth',
+                'model_save_paths': {
+                    'cartpole': 'models/existing_model.pth'
+                },
                 'save_frequency': 50,
                 'reward_history_length': 1000,
                 'episode_history_length': 100,
-                'solved_reward_threshold': 195.0,
+                'solved_reward_thresholds': {
+                    'cartpole': 195.0
+                },
                 'solved_episodes_window': 100,
                 'stop_when_solved': True,
                 'simulation_speed': 0.01
+            },
+            'network': {
+                'input_dim': 4,
+                'hidden_dim': 64,
+                'output_dim': 2
             },
             'logging': {
                 'episode_summary_frequency': 10
@@ -213,20 +250,28 @@ class TestMain:
     @patch('main.create_app')
     @patch('main.threading.Thread')
     @patch('main.PPOAgent')
-    @patch('main.CartPoleEnv')
+    @patch('main.EnvironmentFactory')
     @patch('main.setup_logging')
     @patch('main.load_config')
     def test_shared_state_initialization_example_mode(self, mock_load_config, 
-                                                    mock_setup_logging, mock_cart_pole_env, 
+                                                    mock_setup_logging, mock_env_factory, 
                                                     mock_ppo_agent, mock_thread, mock_create_app):
         """Test shared state initialization in example mode."""
         example_config = {
+            'game': {'environment': 'cartpole'},
             'training': {
                 'example_mode': True,
-                'example_model_path': 'example/model.pth',
+                'example_model_paths': {
+                    'cartpole': 'example/model.pth'
+                },
                 'simulation_speed': 0.01,
                 'reward_history_length': 100,
                 'episode_history_length': 50
+            },
+            'network': {
+                'input_dim': 4,
+                'hidden_dim': 64,
+                'output_dim': 2
             },
             'logging': {
                 'episode_summary_frequency': 10
@@ -272,23 +317,33 @@ class TestMain:
     @patch('main.create_app')
     @patch('main.threading.Thread')
     @patch('main.PPOAgent')
-    @patch('main.CartPoleEnv')
+    @patch('main.EnvironmentFactory')
     @patch('main.setup_logging')
     @patch('main.load_config')
     def test_exception_handling(self, mock_load_config, mock_setup_logging, 
-                               mock_cart_pole_env, mock_ppo_agent, mock_thread, mock_create_app):
+                               mock_env_factory, mock_ppo_agent, mock_thread, mock_create_app):
         """Test exception handling in main function."""
         training_config = {
+            'game': {'environment': 'cartpole'},
             'training': {
                 'example_mode': False, 
-                'model_save_path': 'test.pth',
+                'model_save_paths': {
+                    'cartpole': 'test.pth'
+                },
                 'reward_history_length': 100,
                 'episode_history_length': 50,
                 'simulation_speed': 0.01,
                 'save_frequency': 10,
-                'solved_reward_threshold': 195.0,
+                'solved_reward_thresholds': {
+                    'cartpole': 195.0
+                },
                 'solved_episodes_window': 100,
                 'stop_when_solved': True
+            },
+            'network': {
+                'input_dim': 4,
+                'hidden_dim': 64,
+                'output_dim': 2
             },
             'logging': {
                 'episode_summary_frequency': 10
@@ -323,20 +378,28 @@ class TestMain:
     @patch('main.create_app')
     @patch('main.threading.Thread')
     @patch('main.PPOAgent')
-    @patch('main.CartPoleEnv')
+    @patch('main.EnvironmentFactory')
     @patch('main.setup_logging')
     @patch('main.load_config')
     def test_running_flag_shared_correctly(self, mock_load_config, mock_setup_logging, 
-                                         mock_cart_pole_env, mock_ppo_agent, 
+                                         mock_env_factory, mock_ppo_agent, 
                                          mock_thread, mock_create_app):
         """Test that running flag is properly shared between threads."""
         example_config = {
+            'game': {'environment': 'cartpole'},
             'training': {
                 'example_mode': True,
-                'example_model_path': 'example/model.pth',
+                'example_model_paths': {
+                    'cartpole': 'example/model.pth'
+                },
                 'simulation_speed': 0.01,
                 'reward_history_length': 100,
                 'episode_history_length': 50
+            },
+            'network': {
+                'input_dim': 4,
+                'hidden_dim': 64,
+                'output_dim': 2
             },
             'logging': {
                 'episode_summary_frequency': 10

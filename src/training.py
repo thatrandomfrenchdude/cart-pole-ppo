@@ -91,16 +91,64 @@ def training_loop(env, agent, simulation_speed, summary_frequency, update_freque
                 
                 agent.store_transition(state, action, reward, log_prob, value, done)
                 
-                # Update current state for visualization
-                current_state.update({
-                    "position": float(next_state[0]),
-                    "velocity": float(next_state[1]),
-                    "angle": float(next_state[2]),
-                    "angular_velocity": float(next_state[3]),
-                    "reward": float(reward),
-                    "episode": episode + 1,  # Display current episode (1-indexed)
-                    "timestep": timestep
-                })
+                # Update current state for visualization based on environment type
+                # Note: This is a simplified representation for the web interface
+                if hasattr(env, '__class__'):
+                    env_name = env.__class__.__name__
+                    if env_name == 'CartPoleEnv':
+                        current_state.update({
+                            "position": float(next_state[0]),
+                            "velocity": float(next_state[1]),
+                            "angle": float(next_state[2]),
+                            "angular_velocity": float(next_state[3]),
+                            "reward": float(reward),
+                            "episode": episode + 1,
+                            "timestep": timestep
+                        })
+                    elif env_name == 'MountainCarEnv':
+                        current_state.update({
+                            "position": float(next_state[0]),
+                            "velocity": float(next_state[1]),
+                            "angle": 0.0,  # Not applicable
+                            "angular_velocity": 0.0,  # Not applicable
+                            "reward": float(reward),
+                            "episode": episode + 1,
+                            "timestep": timestep
+                        })
+                    elif env_name == 'PendulumEnv':
+                        # next_state is [cos(theta), sin(theta), theta_dot]
+                        angle = np.arctan2(next_state[1], next_state[0])
+                        current_state.update({
+                            "position": 0.0,  # Not applicable
+                            "velocity": 0.0,  # Not applicable
+                            "angle": float(angle),
+                            "angular_velocity": float(next_state[2]),
+                            "reward": float(reward),
+                            "episode": episode + 1,
+                            "timestep": timestep
+                        })
+                    elif env_name == 'AcrobotEnv':
+                        # next_state is [theta1, theta2, theta1_dot, theta2_dot]
+                        current_state.update({
+                            "position": float(next_state[0]),  # First joint angle
+                            "velocity": float(next_state[2]),  # First joint velocity
+                            "angle": float(next_state[1]),     # Second joint angle
+                            "angular_velocity": float(next_state[3]),  # Second joint velocity
+                            "reward": float(reward),
+                            "episode": episode + 1,
+                            "timestep": timestep
+                        })
+                    else:
+                        # Default handling
+                        current_state.update({
+                            "position": float(next_state[0]) if len(next_state) > 0 else 0.0,
+                            "velocity": float(next_state[1]) if len(next_state) > 1 else 0.0,
+                            "angle": float(next_state[2]) if len(next_state) > 2 else 0.0,
+                            "angular_velocity": float(next_state[3]) if len(next_state) > 3 else 0.0,
+                            "reward": float(reward),
+                            "episode": episode + 1,
+                            "timestep": timestep
+                        })
                 
                 episode_reward += reward
                 state = next_state
@@ -108,7 +156,21 @@ def training_loop(env, agent, simulation_speed, summary_frequency, update_freque
                 
                 # Log current state (reduce frequency for performance)
                 if timestep % 10 == 0 or done:
-                    logger.info(f"Step {timestep}: Pos={next_state[0]:.3f}, Angle={next_state[2]:.3f}, Reward={reward}")
+                    if hasattr(env, '__class__'):
+                        env_name = env.__class__.__name__
+                        if env_name == 'CartPoleEnv':
+                            logger.info(f"Step {timestep}: Pos={next_state[0]:.3f}, Angle={next_state[2]:.3f}, Reward={reward}")
+                        elif env_name == 'MountainCarEnv':
+                            logger.info(f"Step {timestep}: Pos={next_state[0]:.3f}, Vel={next_state[1]:.3f}, Reward={reward}")
+                        elif env_name == 'PendulumEnv':
+                            angle = np.arctan2(next_state[1], next_state[0])
+                            logger.info(f"Step {timestep}: Angle={angle:.3f}, AngVel={next_state[2]:.3f}, Reward={reward:.3f}")
+                        elif env_name == 'AcrobotEnv':
+                            logger.info(f"Step {timestep}: Theta1={next_state[0]:.3f}, Theta2={next_state[1]:.3f}, Reward={reward}")
+                        else:
+                            logger.info(f"Step {timestep}: State={next_state}, Reward={reward}")
+                    else:
+                        logger.info(f"Step {timestep}: State={next_state}, Reward={reward}")
                 
                 # Update policy
                 if timestep % update_timestep == 0:
@@ -132,8 +194,9 @@ def training_loop(env, agent, simulation_speed, summary_frequency, update_freque
             if stop_when_solved and len(episode_rewards) >= solved_window:
                 recent_avg = np.mean(list(episode_rewards)[-solved_window:])
                 if recent_avg >= solved_threshold:
+                    env_name = env.__class__.__name__ if hasattr(env, '__class__') else "Environment"
                     logger.info("="*60)
-                    logger.info("🎉 CART-POLE PROBLEM SOLVED! 🎉")
+                    logger.info(f"🎉 {env_name.upper()} PROBLEM SOLVED! 🎉")
                     logger.info(f"Average reward over last {solved_window} episodes: {recent_avg:.2f}")
                     logger.info(f"Threshold: {solved_threshold}")
                     logger.info(f"Total episodes completed: {episode}")

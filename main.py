@@ -5,7 +5,7 @@ from collections import deque
 
 from src.config import load_config
 from src.utils import setup_logging
-from src.environment import CartPoleEnv
+from src.environments import EnvironmentFactory
 from src.agent import PPOAgent
 from src.training import training_loop, example_mode_loop
 from src.web_server import create_app
@@ -20,6 +20,15 @@ def main():
     # Load configuration
     config = load_config()
     
+    # Get current game environment
+    game_name = config['game']['environment']
+    logger.info(f"Selected environment: {game_name}")
+    
+    # Update network configuration based on environment
+    env_specs = EnvironmentFactory.get_environment_specs(config)
+    config['network']['input_dim'] = env_specs['input_dim']
+    config['network']['output_dim'] = env_specs['output_dim']
+    
     # Check for example mode
     example_mode = config['training'].get('example_mode', False)
     
@@ -30,20 +39,20 @@ def main():
     running_flag = {'value': True}  # Use dict so it's mutable and shared
     
     if example_mode:
-        example_model_path = config['training'].get('example_model_path', 'example/model.pth')
+        example_model_path = config['training']['example_model_paths'][game_name]
         
         # Set up logging for example mode (always overwrite)
         log_file, log_mode_desc = setup_logging(config, append_mode=False)
         
         logger.info("="*60)
-        logger.info("🎬 PPO Cart-Pole Example Mode")
+        logger.info(f"🎬 PPO {game_name.title()} Example Mode")
         logger.info("="*60)
         logger.info("Configuration loaded successfully")
         logger.info(f"Example model path: {example_model_path}")
         logger.info(f"Logging to file: {log_file} ({log_mode_desc})")
         
         # Initialize environment and agent for example mode
-        env = CartPoleEnv(config)
+        env = EnvironmentFactory.create_environment(config)
         agent = PPOAgent(config)
         
         # Initialize current_state with frozen example values for display
@@ -71,7 +80,7 @@ def main():
     else:
         # Original training mode
         # Check if we're resuming from an existing model
-        model_save_path = config['training']['model_save_path']
+        model_save_path = config['training']['model_save_paths'][game_name]
         model_exists = os.path.exists(model_save_path)
         
         # Update global deque sizes with config settings
@@ -87,11 +96,11 @@ def main():
         if model_exists:
             logger.info("")  # Empty line for separation
             logger.info("="*60)
-            logger.info("PPO Cart-Pole Training Session RESUMED")
+            logger.info(f"PPO {game_name.title()} Training Session RESUMED")
             logger.info("="*60)
         else:
             logger.info("="*60)
-            logger.info("PPO Cart-Pole Training Session Started")
+            logger.info(f"PPO {game_name.title()} Training Session Started")
             logger.info("="*60)
         
         logger.info("Configuration loaded successfully")
@@ -99,15 +108,17 @@ def main():
         logger.info(f"Training configuration:")
         logger.info(f"  - Episodes between model saves: {config['training']['save_frequency']}")
         logger.info(f"  - Episodes between summaries: {config['logging']['episode_summary_frequency']}")
-        logger.info(f"  - Model save path: {config['training']['model_save_path']}")
+        logger.info(f"  - Model save path: {model_save_path}")
         logger.info(f"  - Learning rate: {config['ppo']['learning_rate']}")
         logger.info(f"  - Update frequency: {config['ppo']['update_frequency']} steps")
-        logger.info(f"  - Solved threshold: {config['training']['solved_reward_threshold']} average reward")
+        
+        solved_threshold = config['training']['solved_reward_thresholds'][game_name]
+        logger.info(f"  - Solved threshold: {solved_threshold} average reward")
         logger.info(f"  - Solved window: {config['training']['solved_episodes_window']} episodes")
         logger.info(f"  - Stop when solved: {config['training']['stop_when_solved']}")
         
         # Initialize environment and agent
-        env = CartPoleEnv(config)
+        env = EnvironmentFactory.create_environment(config)
         agent = PPOAgent(config)
         
         # Model configuration (model_save_path already defined above)
@@ -117,12 +128,12 @@ def main():
         # Start training in a separate thread
         training_thread = threading.Thread(
             target=training_loop, 
-            args=(env, agent, config['training']['simulation_speed'], config['logging']['episode_summary_frequency'], config['ppo']['update_frequency'], model_save_path, save_frequency, config['training']['solved_reward_threshold'], config['training']['solved_episodes_window'], config['training']['stop_when_solved'], current_state, reward_history, episode_rewards, running_flag),
+            args=(env, agent, config['training']['simulation_speed'], config['logging']['episode_summary_frequency'], config['ppo']['update_frequency'], model_save_path, save_frequency, solved_threshold, config['training']['solved_episodes_window'], config['training']['stop_when_solved'], current_state, reward_history, episode_rewards, running_flag),
             daemon=False  # Don't make it a daemon so it can run properly
         )
         training_thread.start()
         
-        logger.info("Starting PPO Cart-Pole training and Flask server...")
+        logger.info(f"Starting PPO {game_name.title()} training and Flask server...")
         logger.info(f"Access the visualization at http://{config['server']['host']}:{config['server']['port']}")
         logger.info("="*60)
     
@@ -146,9 +157,9 @@ def main():
         running_flag['value'] = False
         logger.info("="*60)
         if example_mode:
-            logger.info("PPO Cart-Pole Example Mode Ended")
+            logger.info(f"PPO {game_name.title()} Example Mode Ended")
         else:
-            logger.info("PPO Cart-Pole Training Session Ended")
+            logger.info(f"PPO {game_name.title()} Training Session Ended")
         logger.info("="*60)
 
 

@@ -21,6 +21,9 @@ class TestFullApplicationIntegration:
         # Create a temporary config file for example mode
         config_content = """
 # Test configuration for example mode
+game:
+  environment: "cartpole"
+
 environment:
   gravity: 9.8
   cart_mass: 1.0
@@ -47,11 +50,14 @@ training:
   simulation_speed: 0.001  # Fast simulation for testing
   reward_history_length: 50
   episode_history_length: 25
-  model_save_path: "test_model.pth"
+  model_save_paths:
+    cartpole: "test_model.pth"
   save_frequency: 5
   example_mode: true
-  example_model_path: "test_example_model.pth"
-  solved_reward_threshold: 195.0
+  example_model_paths:
+    cartpole: "test_example_model.pth"
+  solved_reward_thresholds:
+    cartpole: 195.0
   solved_episodes_window: 100
   stop_when_solved: true
 
@@ -111,6 +117,9 @@ logging:
     def test_training_mode_basic_integration(self, temp_dir):
         """Test basic training mode integration without full training."""
         config_content = """
+game:
+  environment: "cartpole"
+
 environment:
   gravity: 9.8
   cart_mass: 1.0
@@ -137,10 +146,12 @@ training:
   simulation_speed: 0.001
   reward_history_length: 10
   episode_history_length: 5
-  model_save_path: "test_training_model.pth"
+  model_save_paths:
+    cartpole: "test_training_model.pth"
   save_frequency: 2
   example_mode: false  # Training mode
-  solved_reward_threshold: 195.0
+  solved_reward_thresholds:
+    cartpole: 195.0
   solved_episodes_window: 100
   stop_when_solved: false  # Don't stop for testing
 
@@ -252,6 +263,9 @@ logging:
     def test_short_training_session_integration(self, temp_dir):
         """Test a very short training session to verify training loop works."""
         config_content = """
+game:
+  environment: "cartpole"
+
 environment:
   gravity: 9.8
   cart_mass: 1.0
@@ -278,10 +292,12 @@ training:
   simulation_speed: 0.001  # Very fast
   reward_history_length: 20
   episode_history_length: 10
-  model_save_path: "short_training_model.pth"
+  model_save_paths:
+    cartpole: "short_training_model.pth"
   save_frequency: 1  # Save every episode
   example_mode: false
-  solved_reward_threshold: 50.0  # Low threshold for testing
+  solved_reward_thresholds:
+    cartpole: 50.0  # Low threshold for testing
   solved_episodes_window: 3
   stop_when_solved: true  # Stop when solved
 

@@ -1,6 +1,10 @@
-# Cart-Pole PPO Configuration
+# Multi-Environment PPO Configuration
 
-# Environment Physics Parameters
+# Game Selection
+game:
+  environment: "cartpole"               # Environment to play: "cartpole", "mountain_car", "pendulum", "acrobot"
+
+# Environment Physics Parameters for CartPole
 environment:
   gravity: 9.8                          # Gravitational acceleration (m/s^2)
   cart_mass: 1.0                        # Mass of the cart (kg)
@@ -11,11 +15,46 @@ environment:
   position_threshold: 2.4               # Cart position limit (m)
   angle_threshold_degrees: 12           # Pole angle limit (degrees)
 
+# Environment Physics Parameters for MountainCar
+mountain_car:
+  min_position: -1.2                    # Minimum car position
+  max_position: 0.6                     # Maximum car position
+  max_speed: 0.07                       # Maximum car speed
+  goal_position: 0.5                    # Goal position to reach
+  goal_velocity: 0.0                    # Goal velocity at target
+  force: 0.001                          # Force multiplier for acceleration
+  gravity: 0.0025                       # Gravity component
+  time_step: 0.02                       # Time between updates
+
+# Environment Physics Parameters for Pendulum
+pendulum:
+  max_speed: 8.0                        # Maximum angular velocity
+  max_torque: 2.0                       # Maximum applied torque
+  time_step: 0.05                       # Time between updates
+  gravity: 10.0                         # Gravitational acceleration
+  mass: 1.0                             # Pendulum mass
+  length: 1.0                           # Pendulum length
+
+# Environment Physics Parameters for Acrobot
+acrobot:
+  link_length_1: 1.0                    # Length of first link
+  link_length_2: 1.0                    # Length of second link
+  link_mass_1: 1.0                      # Mass of first link
+  link_mass_2: 1.0                      # Mass of second link
+  link_com_pos_1: 0.5                   # Center of mass position for link 1
+  link_com_pos_2: 0.5                   # Center of mass position for link 2
+  link_moi: 1.0                         # Moment of inertia for both links
+  max_vel_1: 12.566                     # Maximum velocity for joint 1 (4*pi)
+  max_vel_2: 28.274                     # Maximum velocity for joint 2 (9*pi)
+  torque_noise_max: 0.0                 # Maximum noise in applied torque
+  time_step: 0.05                       # Time between updates
+  gravity: 9.8                          # Gravitational acceleration
+
 # Neural Network Architecture
 network:
-  input_dim: 4                          # Input dimension (cart pos, vel, pole angle, angular vel)
+  input_dim: 4                          # Input dimension (varies by environment)
   hidden_dim: 128                       # Hidden layer size
-  output_dim: 2                         # Output dimension (left/right actions)
+  output_dim: 2                         # Output dimension (varies by environment)
 
 # PPO Algorithm Parameters
 ppo:
@@ -30,11 +69,31 @@ training:
   simulation_speed: 0.05                # Sleep time between steps (seconds)
   reward_history_length: 1000           # Maximum reward history to keep
   episode_history_length: 100           # Episodes for running average calculation
-  model_save_path: "models/ppo_cartpole.pth"  # Path to save/load the trained model
+  
+  # Model save paths for each environment
+  model_save_paths:
+    cartpole: "models/ppo_cartpole.pth"
+    mountain_car: "models/ppo_mountain_car.pth"
+    pendulum: "models/ppo_pendulum.pth"
+    acrobot: "models/ppo_acrobot.pth"
+  
   save_frequency: 50                    # Save model every N episodes (Note: Auto-saves are more frequent early in training)
   example_mode: true                    # Run pre-trained model from example directory
-  example_model_path: "example/model.pth" # Path to the example trained model (.pth, .pt, or .onnx supported)
-  solved_reward_threshold: 195.0        # Average reward threshold to consider problem solved
+  
+  # Example model paths for each environment
+  example_model_paths:
+    cartpole: "example/model.pth"
+    mountain_car: "example/mountain_car_model.pth"
+    pendulum: "example/pendulum_model.pth"
+    acrobot: "example/acrobot_model.pth"
+  
+  # Solved thresholds for each environment
+  solved_reward_thresholds:
+    cartpole: 195.0                     # CartPole: average reward of 195+ over 100 episodes
+    mountain_car: -110.0                # MountainCar: reach goal in ~110 steps or fewer
+    pendulum: -200.0                    # Pendulum: minimize cost (closer to 0 is better)
+    acrobot: -100.0                     # Acrobot: reach target height quickly
+  
   solved_episodes_window: 100           # Number of consecutive episodes to average for solving criteria
   stop_when_solved: true                # Whether to stop training when the problem is solved
 

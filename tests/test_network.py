@@ -135,6 +135,7 @@ class TestPPONetwork:
     def test_different_config_dimensions(self):
         """Test network with different configuration dimensions."""
         config = {
+            'game': {'environment': 'acrobot'},
             'network': {
                 'input_dim': 6,
                 'hidden_dim': 64,
