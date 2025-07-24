@@ -1,6 +1,7 @@
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
+import numpy as np
 import os
 import logging
 
@@ -64,11 +65,11 @@ class PPOAgent:
         discounted_rewards = torch.FloatTensor(discounted_rewards)
         discounted_rewards = (discounted_rewards - discounted_rewards.mean()) / (discounted_rewards.std() + 1e-8)
         
-        # Convert lists to tensors
-        states = torch.FloatTensor(self.states)
-        actions = torch.LongTensor(self.actions)
-        old_log_probs = torch.FloatTensor(self.log_probs)
-        old_values = torch.FloatTensor(self.values)
+        # Convert lists to tensors efficiently
+        states = torch.FloatTensor(np.array(self.states))
+        actions = torch.LongTensor(np.array(self.actions))
+        old_log_probs = torch.FloatTensor(np.array(self.log_probs))
+        old_values = torch.FloatTensor(np.array(self.values))
         
         advantages = discounted_rewards - old_values
         

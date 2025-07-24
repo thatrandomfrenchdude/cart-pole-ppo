@@ -309,9 +309,13 @@ logging:
             
             # Set up auto-termination after a short time
             def auto_terminate():
-                time.sleep(2.0)  # Let it run for 2 seconds
-                # This will be caught by the training loop
-                raise KeyboardInterrupt()
+                try:
+                    time.sleep(2.0)  # Let it run for 2 seconds
+                    # This will be caught by the training loop
+                    raise KeyboardInterrupt()
+                except KeyboardInterrupt:
+                    # Expected interruption, suppress the warning
+                    pass
             
             ran_training = {'value': False}
             
@@ -321,8 +325,8 @@ logging:
                 timer = threading.Thread(target=auto_terminate)
                 timer.daemon = True
                 timer.start()
-                # Wait for termination
-                timer.join()
+                # Wait for termination with a timeout to avoid hanging
+                timer.join(timeout=3.0)
                 raise KeyboardInterrupt()
             
             with patch.object(main, 'create_app') as mock_create_app:
