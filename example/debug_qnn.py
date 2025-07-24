@@ -5,11 +5,80 @@ Debug script to test QNN setup and diagnose issues
 
 import os
 import sys
+import platform
 import logging
 
 # Set up detailed logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+def is_windows_arm64_snapdragon():
+    """Check if running on Windows ARM64 with Snapdragon X Elite chip"""
+    # Check if Windows
+    if platform.system() != 'Windows':
+        return False
+    
+    # Check if ARM64
+    machine = platform.machine().lower()
+    if machine not in ['arm64', 'aarch64']:
+        return False
+    
+    # Check for Snapdragon X Elite processor
+    try:
+        # Try to get processor info from WMI
+        import subprocess
+        result = subprocess.run(
+            ['wmic', 'cpu', 'get', 'name', '/format:list'],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        cpu_info = result.stdout.lower()
+        # Check for Snapdragon X Elite indicators
+        snapdragon_indicators = ['snapdragon', 'x elite', 'x1e']
+        return any(indicator in cpu_info for indicator in snapdragon_indicators)
+    except:
+        # Fallback: if we can't determine, assume it's Snapdragon if it's Windows ARM64
+        return True
+
+def check_platform_compatibility():
+    """Check if the current platform supports QNN"""
+    system = platform.system()
+    machine = platform.machine().lower()
+    
+    print("🔍 Platform Compatibility Check")
+    print("=" * 60)
+    print(f"Operating System: {system}")
+    print(f"Architecture: {machine}")
+    
+    if system == "Darwin":  # macOS
+        print("❌ QNN is not available on macOS")
+        print("💡 QNN (Qualcomm Neural Network) SDK only supports Windows ARM64 with Snapdragon processors")
+        return False
+    elif system == "Linux":
+        print("❌ QNN is not available on Linux")
+        print("💡 QNN (Qualcomm Neural Network) SDK only supports Windows ARM64 with Snapdragon processors")
+        return False
+    elif system == "Windows":
+        if machine in ['amd64', 'x86_64', 'i386', 'x86']:
+            print("❌ QNN is not available on x86/x64 Windows")
+            print("💡 QNN (Qualcomm Neural Network) SDK requires ARM64 architecture with Snapdragon processors")
+            return False
+        elif machine in ['arm64', 'aarch64']:
+            if is_windows_arm64_snapdragon():
+                print("✅ Platform compatible: Windows ARM64 with Snapdragon processor detected")
+                return True
+            else:
+                print("❌ QNN requires Snapdragon X Elite processor")
+                print("💡 QNN (Qualcomm Neural Network) SDK is optimized for Snapdragon X Elite chips")
+                return False
+        else:
+            print(f"❌ Unknown Windows architecture: {machine}")
+            return False
+    else:
+        print(f"❌ QNN is not available on {system}")
+        print("💡 QNN (Qualcomm Neural Network) SDK only supports Windows ARM64 with Snapdragon processors")
+        return False
 
 def test_qnn_setup():
     """Test QNN setup step by step"""
@@ -99,6 +168,11 @@ def test_qnn_setup():
     return False
 
 if __name__ == "__main__":
+    # First check platform compatibility
+    if not check_platform_compatibility():
+        print("\n🚫 QNN debugging skipped due to platform incompatibility")
+        sys.exit(0)
+    
     # Check if model exists
     if not os.path.exists('example/model.onnx'):
         print("❌ example/model.onnx not found")
