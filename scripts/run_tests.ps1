@@ -22,7 +22,7 @@ function Show-Help {
     Write-Host "Examples:" -ForegroundColor Green
     Write-Host "  .\scripts\run_tests.ps1 all"
     Write-Host "  .\scripts\run_tests.ps1 fast"
-    Write-Host "  .\scripts\run_tests.ps1 test_environment.py"
+    Write-Host "  .\scripts\run_tests.ps1 test_environments.py"
 }
 
 function Test-Dependencies {

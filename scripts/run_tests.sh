@@ -20,7 +20,7 @@ show_help() {
     echo "Examples:"
     echo "  ./scripts/run_tests.sh all"
     echo "  ./scripts/run_tests.sh fast"
-    echo "  ./scripts/run_tests.sh test_environment.py"
+    echo "  ./scripts/run_tests.sh test_environments.py"
 }
 
 check_dependencies() {

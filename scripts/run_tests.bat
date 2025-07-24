@@ -26,7 +26,7 @@ echo.
 echo Examples:
 echo   .\scripts\run_tests.bat all
 echo   .\scripts\run_tests.bat fast
-echo   .\scripts\run_tests.bat test_environment.py
+echo   .\scripts\run_tests.bat test_environments.py
 goto :eof
 
 :check_dependencies

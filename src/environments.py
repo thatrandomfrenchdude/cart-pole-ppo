@@ -243,22 +243,6 @@ class PendulumEnv:
         done = bool(self.step_count >= self.max_steps)
         
         return self._get_obs(), reward, done
-        
-        theta_new = theta + theta_dot_new * self.tau
-        
-        # Normalize angle to [-pi, pi]
-        theta_new = ((theta_new + np.pi) % (2 * np.pi)) - np.pi
-        
-        self.state = np.array([theta_new, theta_dot_new])
-        
-        # Cost function: penalize angle deviation from upright and control effort
-        costs = angle_normalize(theta_new) ** 2 + 0.1 * theta_dot_new ** 2 + 0.001 * (u ** 2)
-        reward = -costs
-        
-        # Episodes don't terminate naturally in Pendulum
-        done = False
-        
-        return self._get_obs(), reward, done
 
 
 class AcrobotEnv:

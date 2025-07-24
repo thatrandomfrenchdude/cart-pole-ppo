@@ -282,7 +282,6 @@ cart-pole-ppo/
 │   ├── agent.py                  # PPO agent implementation (supports discrete & continuous)
 │   ├── aihub_conversion.py       # Model conversion script for Qualcomm AI Hub
 │   ├── config.py                 # Configuration file for hyperparameters and settings
-│   ├── environment.py            # Legacy CartPole environment (for compatibility)
 │   ├── environments.py           # Multi-environment factory and implementations
 │   ├── model_loader.py           # Model loading and inference logic
 │   ├── network.py                # Neural network architecture (adaptive)
@@ -293,7 +292,6 @@ cart-pole-ppo/
 │   ├── conftest.py               # Pytest fixtures and configuration
 │   ├── test_agent.py             # Tests for PPO agent (legacy)
 │   ├── test_config.py            # Tests for configuration loading
-│   ├── test_environment.py       # Tests for legacy environment
 │   ├── test_environments.py      # Tests for multi-environment system
 │   ├── test_formats.py           # Tests for model formats and conversions
 │   ├── test_integration.py       # Integration tests for end-to-end functionality
@@ -340,7 +338,7 @@ pytest -m "not slow and not integration"
 pytest -v
 
 # Run specific test file
-pytest tests/test_environment.py
+pytest tests/test_environments.py
 ```
 
 ## License
