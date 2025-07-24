@@ -57,7 +57,7 @@ def prepare_model(pth_path, config):
     # Test the model
     with torch.no_grad():
         output = model(example_input)
-        print(f"✅ Model loaded successfully")
+        print("✅ Model loaded successfully")
         print(f"   Input shape: {list(example_input.shape)}")
         print(f"   Output shape: {list(output.shape)}")
         print(f"   Sample prediction: {output[0].numpy()}")
@@ -74,7 +74,7 @@ def export_torchscript(model, example_input, path='model_deployment.pt'):
         # Verify the exported model works
         loaded_model = torch.jit.load(path)
         with torch.no_grad():
-            test_output = loaded_model(example_input)
+            loaded_model(example_input)
         
         print(f"✅ TorchScript export successful: {path}")
         return path
@@ -104,7 +104,7 @@ def export_onnx(model, example_input, path='model_deployment.onnx'):
         # Verify the exported model works
         import onnxruntime as ort
         session = ort.InferenceSession(path, providers=['CPUExecutionProvider'])
-        test_output = session.run(['output'], {'input': example_input.numpy()})
+        session.run(['output'], {'input': example_input.numpy()})
         
         print(f"✅ ONNX export successful: {path}")
         return path
@@ -201,19 +201,19 @@ def main():
         for format_name, path in results.items():
             print(f"  • {format_name.upper()}: {path}")
         
-        print(f"\n💡 Usage Instructions:")
+        print("\n💡 Usage Instructions:")
         
         if 'onnx' in results:
-            print(f"🔸 For NPU acceleration with onnxruntime-qnn:")
-            print(f"   pip install onnxruntime-qnn")
-            print(f"   python test_onnx_model.py")
+            print("🔸 For NPU acceleration with onnxruntime-qnn:")
+            print("   pip install onnxruntime-qnn")
+            print("   python test_onnx_model.py")
         
         if 'torchscript' in results:
-            print(f"🔸 For PyTorch deployment:")
-            print(f"   python test_model.py")
+            print("🔸 For PyTorch deployment:")
+            print("   python test_model.py")
         
         if 'qnn' in results:
-            print(f"🔸 For direct QNN runtime (advanced):")
+            print("🔸 For direct QNN runtime (advanced):")
             print(f"   Use {results['qnn']} with Qualcomm QNN SDK")
     
     else:

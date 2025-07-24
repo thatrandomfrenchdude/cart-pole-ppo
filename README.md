@@ -1,4 +1,4 @@
-# Proxmial Policy Optimization Visualized with Cart-Pole
+# Proximal Policy Optimization Visualized with Cart-Pole
 
 <p align="center">
    <img src="assets/cartpole.gif" alt="Cart-Pole PPO Visualization">

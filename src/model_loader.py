@@ -118,9 +118,6 @@ class ModelLoader:
             else:
                 logger.warning("⚠️ Falling back to CPU execution")
             
-            # Print the actual providers being used
-            print(f"   ✅ Session providers: {actual_providers}")
-            
             def predict(state):
                 """Predict using ONNX model"""
                 input_data = np.array(state, dtype=np.float32).reshape(1, -1)

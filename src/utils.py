@@ -22,9 +22,7 @@ class SafeFormatter(logging.Formatter):
                 '📦': '[LOADING]',
                 '🏃': '[BENCHMARK]',
                 '📊': '[RESULTS]',
-                '🏆': '[FASTEST]',
                 '💡': '[TIP]',
-                '🔍': '[DEBUG]',
                 '🧪': '[TEST]',
                 '🎉': '[COMPLETE]'
             }

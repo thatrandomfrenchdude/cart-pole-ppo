@@ -33,7 +33,7 @@ def training_loop(env, agent, simulation_speed, summary_frequency, update_freque
         running_flag: Shared running flag dict
     """
     # Debug logging for parameters
-    logger.info(f"Training loop started with parameters:")
+    logger.info("Training loop started with parameters:")
     logger.info(f"  - Model save path: {model_save_path}")
     logger.info(f"  - Save frequency: {save_frequency} episodes")
     logger.info(f"  - Summary frequency: {summary_frequency} episodes")
@@ -206,7 +206,7 @@ def example_mode_loop(env, agent, simulation_speed, example_model_path, current_
         example_agent = ExampleModeAgent(example_model_path, config)
         
         format_info = example_agent.get_format_info()
-        logger.info(f"✅ Model loaded successfully")
+        logger.info("✅ Model loaded successfully")
         logger.info(f"   Format: {format_info['format'].upper()}")
         logger.info(f"   Supports value estimation: {format_info['supports_value_estimation']}")
         
