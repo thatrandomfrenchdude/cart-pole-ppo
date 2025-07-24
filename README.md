@@ -6,31 +6,30 @@
 
 This project demonstrates a complete reinforcement learning pipeline for the cart-pole balancing problem using Proximal Policy Optimization (PPO). It includes a custom cart-pole environment, a PPO agent implemented in PyTorch, and a web-based visualization interface to observe training progress in real-time.
 
+The application allows you to run a pre-trained model in example mode, or train a new model from scratch. It supports multiple model formats including PyTorch, TorchScript, and ONNX, making it flexible for different deployment scenarios. I've also built in a conversion script to convert PyTorch models to ONNX format for use with Qualcomm AI Hub, enabling NPU acceleration on Snapdragon devices.
+
 ## Table of Contents
-- [Quick Start](#quick-start)
-- [Model Formats](#model-formats)
-- [Researcher Notes](#researcher-notes)
-   - [PPO Algorithm Details](#ppo-algorithm-details)
-   - [Customization with the Configuration File](#customization-with-the-configuration-file)
-- [Developer Notes](#developer-notes)
+1. [Quick Start](#quick-start)
+   - [Prerequisites](#prerequisites)
+   - [Setup](#setup)
+   - [Run the Application](#run-the-application)
+   - [Change Modes](#change-modes)
+2. [Model Formats](#model-formats)
+3. [Custom Configurations](#custom-configurations)
+4. [Proximal Policy Optimization at a Glance](#proximal-policy-optimization-at-a-glance)
+5. [Developer Notes](#developer-notes)
    - [Technical Implementation](#technical-implementation)
    - [Project Layout](#project-layout)
    - [Testing](#testing)
-- [License](#license)
+6. [License](#license)
 
 ## Quick Start
-By default, the application runs a pretrained model in **example mode**. You'll see a real-time cart-pole simulation with live metrics demonstrating "perfect" cart-pole balancing behavior without requiring training time.
-
-**To enable model training**, flip the `example_mode` setting under `training` to `false`:
-```yaml
-training:
-  # some other settings...
-  example_mode: false
-  # some other settings...
-```
+By default, the application runs a pretrained model in **example mode**. You'll see a real-time cart-pole simulation with live metrics demonstrating "perfect" cart-pole balancing behavior without requiring training.
 
 ### Prerequisites
-Requires either Python 3.8+ with dependencies installed or Docker and Docker Compose. Use the appropriate method in the run instructions below.
+Requires either Python 3.8+ with dependencies installed or Docker and Docker Compose.
+
+For NPU acceleration on Snapdragon devices, you must also install and configure the [Qualcomm AI Engine Direct SDK](https://www.qualcomm.com/developer/software/qualcomm-ai-engine-direct-sdk).
 
 ### Setup
 1. Clone this repository:
@@ -40,28 +39,34 @@ Requires either Python 3.8+ with dependencies installed or Docker and Docker Com
    ```
 2. Configure the environment:
    ```bash
-   # python
+   # a. create a virtual environment
    python -m venv venv
-   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+
+   # b. activate the virtual environment
+   source venv/bin/activate  # Mac/Linux
+   venv\Scripts\activate     # Windows
+
+   # c. install base dependencies
    pip install -r requirements.txt
-   ```
 
-### Run the Tests
-Run the tests to ensure everything is working correctly. The tests cover unit tests, integration tests, and performance tests.
-1. Install test dependencies:
-   ```bash
+   # d. install testing dependencies
    pip install -r requirements-test.txt
+
+   # e. OPTIONAL: install QNN dependencies for Snapdragon machines
+   pip install onnxruntime-qnn
    ```
 
-2. Run the tests:
+3. Run the tests to ensure everything is working correctly:
    ```bash
    # On Linux/macOS
    chmod +x scripts/run_tests.sh
    ./scripts/run_tests.sh all
    
-   # On Windows (PowerShell)
-   .\scripts\run_tests.ps1 all
+   # On Windows
+   .\scripts\run_tests.ps1 all # PowerShell
+   .\scripts\run_tests.bat all # Command Prompt
    ```
+   Note: I have observed that some of the integrations tests don't work on Windows due to permission issues.
 
 ### Run the Application
 1. Run the application server:
@@ -75,15 +80,22 @@ Run the tests to ensure everything is working correctly. The tests cover unit te
 
 2. Open your web browser and go to: `http://localhost:8080`
 
+### Change Modes
+To enable model training, flip the `example_mode` setting under `training` to `false`:
+```yaml
+
+training:
+  # some other settings...
+  example_mode: false
+  # some other settings...
+```
+
 ## Model Formats
-The application supports multiple model formats for flexibility:
-- **PyTorch**: `.pth` files
-- **TorchScript**: `.pt` files
-- **ONNX**: `.onnx` files
 
-For training, the default model format is PyTorch and cannot be changed. In example mode, the model can be in any of the supported formats. The application will automatically detect the format based on the file extension.
+The application supports **PyTorch** (`.pth`), **TorchScript** (`.pt`), and **ONNX** (`.onnx`) model formats for flexibility. The default model format for training is PyTorch and cannot be changed. In example mode, the application will automatically detect the format based on the file extension.
 
-The names of the models for training and example mode can be configured in the `config.yaml` file under the `training` section:
+### Model Naming
+The model names for both modes can be configured in the `config.yaml` file under the `training` section:
 ```yaml
 training:
   model_save_path: "models/ppo_cartpole.pth"  # .pth only for training, any file name is accepted
@@ -97,44 +109,24 @@ Examples of all three model formats can be found in the `example` directory:
 ├── model.pt         # TorchScript model
 └── model.onnx       # ONNX model
 ```
-You can compare the performance of these models by activating the virtual environment and running the `compare_models.py` script:
+
+### Performance Comparison
+You can compare the performance of these models using the `compare_models.py` script. It provides a quick evaluation of each model's inference speed in relation to the others.
+
+Run it as follows:
 ```bash
 # Activate the virtual environment
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+source venv/bin/activate # Mac/Linux
+venv\Scripts\activate    # Windows
 
 # Run the comparison script
 python src/compare_models.py # assumes the working directory is the project root
 ```
 
-### A Note on Model Conversion
-The `aihub_conversion.py` script is provided in the `src` directory to convert .pth models to .pt and .onnx using Qualcomm AI Hub. This provides NPU acceleration for the ONNX model when running on a Snapdragon X device. You can also convert the models on your own if you prefer.
+### Model Conversion with Qualcomm AI Hub for Snapdragon X Devices
+The `src/aihub_conversion.py` script is provided to convert .pth models to .pt and then .onnx using Qualcomm AI Hub for NPU acceleration. You can also convert the models on your own if you prefer.
 
-## Researcher Notes
-
-### PPO Algorithm Details
-
-The implementation includes:
-- **Policy Network**: Outputs action probabilities
-- **Value Network**: Estimates state values for advantage calculation
-- **Shared Feature Extraction**: Common layers for both policy and value functions
-- **Clipped Surrogate Objective**: Prevents large policy updates
-- **Generalized Advantage Estimation**: Improves learning stability
-
-#### Training Process
-
-1. **Environment Reset**: Start new episode with random initial state
-2. **Action Selection**: Policy network chooses actions based on current state
-3. **Experience Collection**: Store states, actions, rewards, and probabilities
-4. **Policy Updates**: Every 200 steps, update the policy using PPO loss
-5. **Performance Tracking**: Log episode rewards and training statistics
-
-#### Performance Expectations
-
-- Cart-Pole is considered "solved" when achieving an average reward of 195+ over 100 consecutive episodes
-- Training typically shows improvement within the first few episodes
-- Complete learning usually occurs within 100-500 episodes depending on initialization
-
-### Customization with the Configuration File
+## Custom Configurations
 The [`config.yaml`](config.yaml) file allows you to customize all aspects of training. There are sections for environment parameters, neural network architecture, PPO hyperparameters, training settings, server configuration, and logging.
 
 Below are the environment and ppo subsets of the config:
@@ -162,6 +154,31 @@ ppo:
   update_frequency: 200                 # Steps between PPO updates
 ```
 
+## Proximal Policy Optimization at a Glance
+Proximal Policy Optimization, or PPO, is a popular reinforcement learning algorithm that balances exploration and exploitation by optimizing a surrogate objective function. It uses a clipped objective to prevent large policy updates, which helps maintain stability during training.
+
+#### Core Components
+- *Policy Network*: Outputs action probabilities based on the current state
+- *Value Network*: Estimates the value of states to compute advantages
+- *Shared Encoder*: Common feature extraction layers for both policy and value networks
+
+#### Learning Signals
+- *Clipped Surrogate Loss*: Prevents large updates to the policy
+- *Generalized Advantage Estimation (GAE)*: Reduces variance in advantage estimates while maintaining bias
+- *Entropy Bonus*: Encourages exploration by penalizing deterministic policies
+
+### Training Process
+1. **Environment Reset**: Start new episode with random initial state
+2. **Action Selection**: Policy network chooses actions based on current state
+3. **Experience Collection**: Store states, actions, rewards, and probabilities
+4. **Policy Updates**: Every 200 steps, update the policy using PPO loss
+5. **Performance Tracking**: Log episode rewards and training statistics
+
+### Performance Expectations
+- Cart-Pole is considered "solved" when achieving an average reward of 195+ over 100 consecutive episodes
+- Training typically shows improvement within the first few episodes
+- Complete learning usually occurs within 100-500 episodes depending on initialization
+
 ## Developer Notes
 
 ### Technical Implementation
@@ -178,6 +195,13 @@ ppo:
 The project is organized as follows:
 ```
 cart-pole-ppo/
+├── example/                      # Example models in different formats
+│   ├── compare_models.py         # Script to compare model performance
+│   ├── debug_qnn.py              # Debug script for QNN validation
+│   ├── model.pth                 # PyTorch model
+│   ├── model.pt                  # TorchScript model
+│   ├── model.onnx                # ONNX model
+│   └── training-log.log          # Training log
 ├── scripts/                      # Utility scripts
 │   ├── run_tests.sh              # Script to run all tests (Linux/macOS)
 │   ├── run_tests.bat             # Script to run all tests (Windows)
@@ -230,8 +254,9 @@ pytest
 # Linux/macOS
 ./scripts/run_tests.sh all
 
-# Windows PowerShell
-.\scripts\run_tests.ps1 all
+# Windows
+.\scripts\run_tests.ps1 all # PowerShell
+.\scripts\run_tests.bat all # Command Prompt
 
 # Run tests with coverage report
 pytest --cov=src --cov-report=html
