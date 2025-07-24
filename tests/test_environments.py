@@ -93,10 +93,10 @@ class TestEnvironmentFactory:
         specs = EnvironmentFactory.get_environment_specs(config)
         assert specs == {'input_dim': 4, 'output_dim': 2}
         
-        # MountainCar
+        # MountainCar (now continuous)
         config['game'] = {'environment': 'mountain_car'}
         specs = EnvironmentFactory.get_environment_specs(config)
-        assert specs == {'input_dim': 2, 'output_dim': 3}
+        assert specs == {'input_dim': 2, 'output_dim': 1}
         
         # Pendulum
         config['game'] = {'environment': 'pendulum'}
@@ -155,8 +155,8 @@ class TestMountainCarEnv:
         env = MountainCarEnv(mountain_car_config)
         env.reset()
         
-        # Test all three actions
-        for action in [0, 1, 2]:  # left, none, right
+        # Test continuous actions
+        for action in [-1.0, 0.0, 1.0]:  # left, none, right
             initial_state = env.state.copy()
             next_state, reward, done = env.step(action)
             
@@ -164,7 +164,7 @@ class TestMountainCarEnv:
             assert isinstance(reward, (int, float))
             assert isinstance(done, bool)
             
-            # State should change (except possibly velocity in some cases)
+            # State should change
             assert not np.array_equal(initial_state, next_state)
     
     def test_boundary_conditions(self, mountain_car_config):
@@ -179,26 +179,26 @@ class TestMountainCarEnv:
         
         # Test right boundary (goal)
         env.state = np.array([env.max_position - 0.01, 0.05])
-        next_state, reward, done = env.step(2)  # Push right
+        next_state, reward, done = env.step(1.0)  # Push right with continuous action
         assert next_state[0] >= env.goal_position
         assert done  # Should reach goal
-        assert reward == 100.0  # Goal reward
+        assert reward == 99.9  # Goal reward (100) minus force penalty (0.1 * 1.0^2)
     
     def test_reward_structure(self, mountain_car_config):
         """Test reward structure."""
         env = MountainCarEnv(mountain_car_config)
         env.reset()
         
-        # Normal step should give -1 reward
-        _, reward, done = env.step(1)
+        # Normal step should give -0.1*a^2 reward (force penalty)
+        _, reward, done = env.step(1.0)  # Max force
         if not done:
-            assert reward == -1.0
+            assert reward == -0.1  # -0.1 * 1.0^2
         
-        # Reaching goal should give 100 reward
+        # Reaching goal should give 100 reward minus force penalty
         env.state = np.array([env.goal_position, 0.01])
-        _, reward, done = env.step(1)
+        _, reward, done = env.step(0.5)  # Half force
         if done:
-            assert reward == 100.0
+            assert reward == 99.975  # 100.0 - 0.1 * 0.5^2 = 100.0 - 0.025
 
 
 class TestPendulumEnv:
@@ -395,7 +395,7 @@ class TestAcrobotEnv:
         
         # Should reach goal (or be very close)
         if done:
-            assert reward == 100.0
+            assert reward == 0.0  # Goal reached gives 0 reward (no more -1 penalty)
         else:
             assert reward == -1.0
     

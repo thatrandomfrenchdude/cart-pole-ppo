@@ -14,7 +14,7 @@ class PPONetwork(nn.Module):
         
         # Determine if this is a continuous action environment
         game_type = config['game']['environment'].lower()
-        self.continuous_action = (game_type == 'pendulum')
+        self.continuous_action = (game_type in ['pendulum', 'mountain_car'])
         
         self.shared = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),

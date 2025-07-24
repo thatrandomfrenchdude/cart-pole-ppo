@@ -25,7 +25,7 @@ class PPOAgent:
         
         # Determine if this is a continuous action environment
         game_type = config['game']['environment'].lower()
-        self.continuous_action = (game_type == 'pendulum')
+        self.continuous_action = (game_type in ['pendulum', 'mountain_car'])
         
         self.states = []
         self.actions = []

@@ -40,10 +40,10 @@ class TestPPOAgentDiscrete:
         assert len(agent.dones) == 0
     
     def test_mountain_car_select_action(self, sample_config):
-        """Test action selection for MountainCar."""
+        """Test action selection for MountainCar (continuous)."""
         config = sample_config.copy()
         config['game'] = {'environment': 'mountain_car'}
-        config['network'] = {'input_dim': 2, 'hidden_dim': 64, 'output_dim': 3}
+        config['network'] = {'input_dim': 2, 'hidden_dim': 64, 'output_dim': 1}  # Continuous action
         agent = PPOAgent(config)
         
         # Create sample state
@@ -52,9 +52,10 @@ class TestPPOAgentDiscrete:
         # Select action
         action, log_prob, value = agent.select_action(state)
         
-        # Check return types for discrete action
-        assert isinstance(action, int)
-        assert action in [0, 1, 2]  # Should be valid action for MountainCar
+        # Check return types for continuous action
+        assert isinstance(action, np.ndarray)
+        assert action.shape == (1,)  # Single continuous action
+        assert -1.0 <= action[0] <= 1.0  # Action should be clipped to [-1, 1]
         assert isinstance(log_prob, float)
         assert isinstance(value, float)
     
@@ -343,7 +344,7 @@ class TestPPOAgentEnvironmentCompatibility:
     
     @pytest.mark.parametrize("env_name,input_dim,output_dim,continuous", [
         ('cartpole', 4, 2, False),
-        ('mountain_car', 2, 3, False),
+        ('mountain_car', 2, 1, True),  # Mountain Car is now continuous
         ('pendulum', 3, 1, True),
         ('acrobot', 4, 3, False),
     ])

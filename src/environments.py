@@ -30,7 +30,7 @@ class EnvironmentFactory:
         if game_type == 'cartpole':
             return {'input_dim': 4, 'output_dim': 2}  # Discrete actions: left/right
         elif game_type == 'mountain_car':
-            return {'input_dim': 2, 'output_dim': 3}  # Discrete actions: left/none/right
+            return {'input_dim': 2, 'output_dim': 1}  # Continuous action: force
         elif game_type == 'pendulum':
             return {'input_dim': 3, 'output_dim': 1}  # Continuous action: torque
         elif game_type == 'acrobot':
@@ -70,16 +70,24 @@ class CartPoleEnv:
         costheta = math.cos(theta)
         sintheta = math.sin(theta)
         
-        temp = (force + self.polemass_length * theta_dot ** 2 * sintheta) / self.total_mass
-        thetaacc = (self.gravity * sintheta - costheta * temp) / (
-            self.length * (4.0 / 3.0 - self.masspole * costheta ** 2 / self.total_mass)
-        )
-        xacc = temp - self.polemass_length * thetaacc * costheta / self.total_mass
+        # Correct CartPole dynamics according to specification
+        # F is the force applied to the cart (positive = right, negative = left)
+        F = force
         
-        x = x + self.tau * x_dot
-        x_dot = x_dot + self.tau * xacc
-        theta = theta + self.tau * theta_dot
-        theta_dot = theta_dot + self.tau * thetaacc
+        # Angular acceleration according to the spec formula
+        temp = (-F - self.masspole * self.length * theta_dot ** 2 * sintheta) / (self.masscart + self.masspole)
+        thetaacc = (self.gravity * sintheta + costheta * temp) / (
+            self.length * (4.0 / 3.0 - self.masspole * costheta ** 2 / (self.masscart + self.masspole))
+        )
+        
+        # Cart acceleration according to the spec formula
+        xacc = (F + self.masspole * self.length * (theta_dot ** 2 * sintheta - thetaacc * costheta)) / (self.masscart + self.masspole)
+        
+        # Euler integration
+        x_dot = x_dot + xacc * self.tau
+        x = x + x_dot * self.tau
+        theta_dot = theta_dot + thetaacc * self.tau
+        theta = theta + theta_dot * self.tau
         
         self.state = np.array([x, x_dot, theta, theta_dot])
         
@@ -108,6 +116,9 @@ class MountainCarEnv:
         self.gravity = env_config['gravity']
         self.tau = env_config['time_step']
         
+        self.step_count = 0
+        self.max_steps = 999  # Episode horizon
+        
         self.low_state = np.array([self.min_position, -self.max_speed])
         self.high_state = np.array([self.max_position, self.max_speed])
         
@@ -119,23 +130,24 @@ class MountainCarEnv:
             np.random.uniform(low=-0.6, high=-0.4),
             0.0
         ])
+        self.step_count = 0
         return self.state
     
     def step(self, action):
         position, velocity = self.state
         
-        # Convert discrete action to force (-1, 0, 1)
-        if action == 0:
-            force = -1.0
-        elif action == 1:
-            force = 0.0
-        else:  # action == 2
-            force = 1.0
+        # Handle continuous action (should be between -1 and 1)
+        if isinstance(action, (list, np.ndarray)):
+            a = np.clip(action[0], -1.0, 1.0)
+        else:
+            a = np.clip(action, -1.0, 1.0)
         
-        # Physics update
-        velocity += force * self.force + math.cos(3 * position) * (-self.gravity)
+        # Physics update according to specification:
+        # v := v + 0.001*a - 0.0025*cos(3*x)
+        # x := x + v
+        velocity = velocity + 0.001 * a - 0.0025 * math.cos(3 * position)
         velocity = np.clip(velocity, -self.max_speed, self.max_speed)
-        position += velocity
+        position = position + velocity
         
         # Handle boundaries
         if position < self.min_position:
@@ -146,12 +158,20 @@ class MountainCarEnv:
             velocity = 0.0
         
         self.state = np.array([position, velocity])
+        self.step_count += 1
         
-        # Check if goal is reached
-        done = bool(position >= self.goal_position and velocity >= self.goal_velocity)
+        # Check if goal is reached (x >= 0.45)
+        goal_reached = bool(position >= self.goal_position)
         
-        # Reward structure: -1 for each step, 100 bonus for reaching goal
-        reward = 100.0 if done else -1.0
+        # Check if max steps reached
+        max_steps_reached = bool(self.step_count >= self.max_steps)
+        
+        done = goal_reached or max_steps_reached
+        
+        # Reward structure: -0.1*a^2 each step, +100 bonus for reaching goal
+        reward = -0.1 * (a ** 2)
+        if goal_reached:
+            reward += 100.0
         
         return self.state, reward, done
 
@@ -168,6 +188,9 @@ class PendulumEnv:
         self.mass = env_config['mass']
         self.length = env_config['length']
         
+        self.step_count = 0
+        self.max_steps = 200  # Fixed horizon
+        
         self.reset()
     
     def reset(self):
@@ -175,6 +198,7 @@ class PendulumEnv:
         theta = np.random.uniform(low=-np.pi, high=np.pi)
         theta_dot = np.random.uniform(low=-1, high=1)
         self.state = np.array([theta, theta_dot])
+        self.step_count = 0
         return self._get_obs()
     
     def _get_obs(self):
@@ -185,19 +209,40 @@ class PendulumEnv:
     def step(self, action):
         theta, theta_dot = self.state
         
-        # Handle continuous action (should be between -1 and 1)
+        # Handle continuous action (should be between -1 and 1, then scaled to max_torque)
         if isinstance(action, (list, np.ndarray)):
             u = np.clip(action[0], -1.0, 1.0) * self.max_torque
         else:
             u = np.clip(action, -1.0, 1.0) * self.max_torque
         
-        # Pendulum dynamics
+        # Pendulum dynamics according to specification:
+        # θ̈ = -3g/(2l) * sin(θ) + 3/(ml²) * u
         g = self.gravity
         m = self.mass
         l = self.length
         
-        theta_dot_new = theta_dot + (3 * g / (2 * l) * np.sin(theta) + 3.0 / (m * l ** 2) * u) * self.tau
+        theta_ddot = -3 * g / (2 * l) * np.sin(theta) + 3.0 / (m * l ** 2) * u
+        
+        # Euler integration
+        theta_dot_new = theta_dot + theta_ddot * self.tau
         theta_dot_new = np.clip(theta_dot_new, -self.max_speed, self.max_speed)
+        
+        theta_new = theta + theta_dot_new * self.tau
+        
+        # Normalize angle to [-pi, pi]
+        theta_new = ((theta_new + np.pi) % (2 * np.pi)) - np.pi
+        
+        self.state = np.array([theta_new, theta_dot_new])
+        self.step_count += 1
+        
+        # Reward function according to specification:
+        # reward = -θ² - 0.1*θ̇² - 0.001*u²
+        reward = -(theta_new ** 2) - 0.1 * (theta_dot_new ** 2) - 0.001 * (u ** 2)
+        
+        # Episodes run for fixed horizon
+        done = bool(self.step_count >= self.max_steps)
+        
+        return self._get_obs(), reward, done
         
         theta_new = theta + theta_dot_new * self.tau
         
@@ -235,8 +280,11 @@ class AcrobotEnv:
         self.tau = env_config['time_step']
         self.gravity = env_config['gravity']
         
-        # Goal: reach height of at least 1.0 (link1_length + link2_length - 0.05)
+        # Goal: reach height threshold (end of link 2 above certain height)
         self.goal_height = self.LINK_LENGTH_1 + self.LINK_LENGTH_2 - 0.05
+        
+        self.step_count = 0
+        self.max_steps = 500  # Episode horizon
         
         self.reset()
     
@@ -245,6 +293,7 @@ class AcrobotEnv:
         # State: [theta1, theta2, theta1_dot, theta2_dot]
         self.state = np.random.uniform(low=-0.1, high=0.1, size=(4,))
         self.state[0] += np.pi  # First link starts hanging down
+        self.step_count = 0
         return self.state
     
     def step(self, action):
@@ -258,33 +307,45 @@ class AcrobotEnv:
         # Current state
         theta1, theta2, theta1_dot, theta2_dot = self.state
         
-        # Physics simulation using simplified double pendulum dynamics
-        # This is a simplified version of the full Lagrangian mechanics
-        d1 = self.LINK_MASS_1 * self.LINK_COM_POS_1 ** 2 + self.LINK_MASS_2 * \
-             (self.LINK_LENGTH_1 ** 2 + self.LINK_COM_POS_2 ** 2 + 
-              2 * self.LINK_LENGTH_1 * self.LINK_COM_POS_2 * np.cos(theta2)) + self.LINK_MOI
+        # Acrobot dynamics using Lagrangian mechanics
+        # Simplified version based on double pendulum with only second joint actuated
         
-        d2 = self.LINK_MASS_2 * (self.LINK_COM_POS_2 ** 2 + 
-                                 self.LINK_LENGTH_1 * self.LINK_COM_POS_2 * np.cos(theta2)) + self.LINK_MOI
+        # Constants for cleaner notation
+        m1, m2 = self.LINK_MASS_1, self.LINK_MASS_2
+        l1, l2 = self.LINK_LENGTH_1, self.LINK_LENGTH_2
+        lc1, lc2 = self.LINK_COM_POS_1, self.LINK_COM_POS_2
+        I1, I2 = self.LINK_MOI, self.LINK_MOI
+        g = self.gravity
         
-        d3 = self.LINK_MASS_2 * self.LINK_COM_POS_2 ** 2 + self.LINK_MOI
+        # Inertia matrix elements
+        d11 = m1 * lc1**2 + m2 * (l1**2 + lc2**2 + 2 * l1 * lc2 * np.cos(theta2)) + I1 + I2
+        d12 = m2 * (lc2**2 + l1 * lc2 * np.cos(theta2)) + I2
+        d22 = m2 * lc2**2 + I2
         
-        # Simplified dynamics (Euler integration)
-        phi_2 = self.LINK_MASS_2 * self.LINK_COM_POS_2 * self.gravity * np.cos(theta1 + theta2 - np.pi / 2.0)
-        phi_1 = (-self.LINK_MASS_2 * self.LINK_LENGTH_1 * theta2_dot ** 2 * self.LINK_COM_POS_2 * np.sin(theta2) -
-                 2 * self.LINK_MASS_2 * self.LINK_LENGTH_1 * theta1_dot * theta2_dot * self.LINK_COM_POS_2 * np.sin(theta2) +
-                 (self.LINK_MASS_1 * self.LINK_COM_POS_1 + self.LINK_MASS_2 * self.LINK_LENGTH_1) * 
-                 self.gravity * np.cos(theta1 - np.pi / 2) + phi_2)
+        # Coriolis and centrifugal terms
+        h1 = -m2 * l1 * lc2 * np.sin(theta2) * theta2_dot**2 - 2 * m2 * l1 * lc2 * np.sin(theta2) * theta1_dot * theta2_dot
+        h2 = m2 * l1 * lc2 * np.sin(theta2) * theta1_dot**2
         
-        # Compute accelerations (simplified)
-        denom = d1 * d3 - d2 ** 2
-        if abs(denom) < 1e-6:
-            denom = 1e-6
-            
-        theta2_ddot = (torque + d2 / d3 * phi_2 - d2 / d1 * phi_1) / (d2 ** 2 / (d1 * d3) - 1)
-        theta1_ddot = -(d2 * theta2_ddot + phi_1) / d1
+        # Gravity terms
+        phi1 = (m1 * lc1 + m2 * l1) * g * np.cos(theta1 - np.pi/2) + m2 * lc2 * g * np.cos(theta1 + theta2 - np.pi/2)
+        phi2 = m2 * lc2 * g * np.cos(theta1 + theta2 - np.pi/2)
         
-        # Integrate
+        # Total forces
+        tau1 = 0.0  # No torque on first joint
+        tau2 = torque  # Torque on second joint
+        
+        f1 = tau1 - h1 - phi1
+        f2 = tau2 - h2 - phi2
+        
+        # Solve for accelerations: [d11 d12; d12 d22] * [theta1_ddot; theta2_ddot] = [f1; f2]
+        det = d11 * d22 - d12**2
+        if abs(det) < 1e-6:
+            det = 1e-6  # Avoid division by zero
+        
+        theta1_ddot = (d22 * f1 - d12 * f2) / det
+        theta2_ddot = (d11 * f2 - d12 * f1) / det
+        
+        # Integrate using Euler method
         theta1_dot_new = theta1_dot + theta1_ddot * self.tau
         theta2_dot_new = theta2_dot + theta2_ddot * self.tau
         
@@ -295,21 +356,25 @@ class AcrobotEnv:
         theta1_new = theta1 + theta1_dot_new * self.tau
         theta2_new = theta2 + theta2_dot_new * self.tau
         
-        # Wrap angles
+        # Wrap angles to [-pi, pi]
         theta1_new = wrap_angle(theta1_new)
         theta2_new = wrap_angle(theta2_new)
         
         self.state = np.array([theta1_new, theta2_new, theta1_dot_new, theta2_dot_new])
+        self.step_count += 1
         
         # Check if goal is reached (end-effector height)
-        # End-effector position calculation
-        y = (-self.LINK_LENGTH_1 * np.cos(theta1_new) - 
-             self.LINK_LENGTH_2 * np.cos(theta1_new + theta2_new))
+        # End-effector position: foot of second link
+        # Height should be positive when above the pivot (goal) and negative when below
+        y = l1 * np.cos(theta1_new) + l2 * np.cos(theta1_new + theta2_new)
         
-        done = bool(y >= self.goal_height)
+        goal_reached = bool(y >= self.goal_height)
+        max_steps_reached = bool(self.step_count >= self.max_steps)
         
-        # Reward: -1 for each step, bonus for reaching goal
-        reward = 100.0 if done else -1.0
+        done = goal_reached or max_steps_reached
+        
+        # Sparse reward: -1 each step until goal is reached
+        reward = 0.0 if goal_reached else -1.0
         
         return self.state, reward, done
 

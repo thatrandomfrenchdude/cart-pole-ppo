@@ -15,15 +15,15 @@ environment:
   position_threshold: 2.4               # Cart position limit (m)
   angle_threshold_degrees: 12           # Pole angle limit (degrees)
 
-# Environment Physics Parameters for MountainCar
+# Environment Physics Parameters for MountainCar (Continuous)
 mountain_car:
   min_position: -1.2                    # Minimum car position
   max_position: 0.6                     # Maximum car position
   max_speed: 0.07                       # Maximum car speed
-  goal_position: 0.5                    # Goal position to reach
+  goal_position: 0.45                   # Goal position to reach (x >= 0.45)
   goal_velocity: 0.0                    # Goal velocity at target
-  force: 0.001                          # Force multiplier for acceleration
-  gravity: 0.0025                       # Gravity component
+  force: 0.001                          # Force multiplier (used in dynamics)
+  gravity: 0.0025                       # Gravity component (used in dynamics)
   time_step: 0.02                       # Time between updates
 
 # Environment Physics Parameters for Pendulum
@@ -90,7 +90,7 @@ training:
   # Solved thresholds for each environment
   solved_reward_thresholds:
     cartpole: 195.0                     # CartPole: average reward of 195+ over 100 episodes
-    mountain_car: -110.0                # MountainCar: reach goal in ~110 steps or fewer
+    mountain_car: 90.0                  # MountainCar: average reward of 90+ (goal bonus - energy costs)
     pendulum: -200.0                    # Pendulum: minimize cost (closer to 0 is better)
     acrobot: -100.0                     # Acrobot: reach target height quickly
   

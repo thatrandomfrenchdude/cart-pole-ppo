@@ -132,7 +132,7 @@ class TestMultiEnvironmentIntegration:
         """Test that agents produce compatible actions for each environment."""
         test_cases = [
             ('cartpole', 4, 2, False),
-            ('mountain_car', 2, 3, False),
+            ('mountain_car', 2, 1, True),  # Mountain Car is now continuous
             ('pendulum', 3, 1, True),
             ('acrobot', 4, 3, False)
         ]
@@ -267,10 +267,10 @@ class TestEnvironmentSpecificBehavior:
         
         # Set car at goal position
         env.state = np.array([0.51, 0.01])  # At goal with small velocity
-        _, reward, done = env.step(1)  # No action
+        _, reward, done = env.step(1.0)  # Max force action (continuous)
         
         assert done
-        assert reward == 100.0  # Goal reward
+        assert reward == 99.9  # Goal reward (100) minus force penalty (0.1 * 1.0^2)
     
     def test_pendulum_continuous_episodes(self, sample_config):
         """Test that Pendulum episodes don't terminate naturally."""
@@ -315,7 +315,7 @@ class TestEnvironmentSpecificBehavior:
         _, reward, done = env.step(1)
         
         if done:
-            assert reward == 100.0
+            assert reward == 0.0  # Goal reached gives 0 reward (no penalty)
 
 
 class TestMultiEnvironmentErrorHandling:

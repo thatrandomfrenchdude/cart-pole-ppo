@@ -27,10 +27,10 @@ class TestPPONetworkDiscrete:
         assert network.continuous_action is False
     
     def test_mountain_car_network_forward(self, sample_config):
-        """Test forward pass for MountainCar network."""
+        """Test forward pass for MountainCar network (continuous)."""
         config = sample_config.copy()
         config['game'] = {'environment': 'mountain_car'}
-        config['network'] = {'input_dim': 2, 'hidden_dim': 64, 'output_dim': 3}
+        config['network'] = {'input_dim': 2, 'hidden_dim': 64, 'output_dim': 1}  # Continuous action
         
         network = PPONetwork(config)
         
@@ -38,19 +38,16 @@ class TestPPONetworkDiscrete:
         batch_size = 5
         states = torch.randn(batch_size, 2)
         
-        # Forward pass
-        action_probs, values = network(states)
+        # Forward pass (continuous action network returns mean, std, values)
+        action_mean, action_std, values = network(states)
         
-        # Check output shapes
-        assert action_probs.shape == (batch_size, 3)
+        # Check output shapes for continuous actions
+        assert action_mean.shape == (batch_size, 1)
+        assert action_std.shape == (1,)  # Shared std parameter
         assert values.shape == (batch_size, 1)
         
-        # Check action probabilities sum to 1
-        prob_sums = torch.sum(action_probs, dim=1)
-        assert torch.allclose(prob_sums, torch.ones(batch_size), atol=1e-6)
-        
-        # Check probabilities are non-negative
-        assert torch.all(action_probs >= 0)
+        # Check action std is positive
+        assert torch.all(action_std > 0)
     
     def test_acrobot_network_dimensions(self, sample_config):
         """Test network dimensions for Acrobot."""
