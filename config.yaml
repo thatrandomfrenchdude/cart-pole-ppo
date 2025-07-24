@@ -2,7 +2,7 @@
 
 # Game Selection
 game:
-  environment: "cartpole"               # Environment to play: "cartpole", "mountain_car", "pendulum", "acrobot"
+  environment: "pendulum"               # Environment to play: "cartpole", "mountain_car", "pendulum", "acrobot"
 
 # Environment Physics Parameters for CartPole
 environment:
@@ -78,14 +78,14 @@ training:
     acrobot: "models/ppo_acrobot.pth"
   
   save_frequency: 50                    # Save model every N episodes (Note: Auto-saves are more frequent early in training)
-  example_mode: true                    # Run pre-trained model from example directory
+  example_mode: false                    # Run pre-trained model from example directory
   
   # Example model paths for each environment
   example_model_paths:
-    cartpole: "example/model.pth"
-    mountain_car: "example/mountain_car_model.pth"
-    pendulum: "example/pendulum_model.pth"
-    acrobot: "example/acrobot_model.pth"
+    cartpole: "example/cartpole/model.pth"
+    mountain_car: "example/mountain_car/mountain_car_model.pth"
+    pendulum: "example/pendulum/pendulum_model.pth"
+    acrobot: "example/acrobot/acrobot_model.pth"
   
   # Solved thresholds for each environment
   solved_reward_thresholds:

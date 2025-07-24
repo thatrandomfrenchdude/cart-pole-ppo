@@ -3,14 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cart-Pole PPO Visualization</title>
+    <title>Multi-Environment PPO Visualization</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <h1>Cart-Pole PPO Training Visualization</h1>
+        <h1 id="main-title">Multi-Environment PPO Training Visualization</h1>
         
         <div class="info-panel">
+            <div class="info-item">
+                <label>Environment:</label>
+                <span id="environment">CartPole</span>
+            </div>
             <div class="info-item">
                 <label>Episode:</label>
                 <span id="episode">0</span>
@@ -19,20 +23,20 @@
                 <label>Timestep:</label>
                 <span id="timestep">0</span>
             </div>
-            <div class="info-item">
-                <label>Position:</label>
+            <div class="info-item environment-specific" id="position-item">
+                <label id="position-label">Position:</label>
                 <span id="position">0.000</span>
             </div>
-            <div class="info-item">
-                <label>Velocity:</label>
+            <div class="info-item environment-specific" id="velocity-item">
+                <label id="velocity-label">Velocity:</label>
                 <span id="velocity">0.000</span>
             </div>
-            <div class="info-item">
-                <label>Angle:</label>
+            <div class="info-item environment-specific" id="angle-item">
+                <label id="angle-label">Angle:</label>
                 <span id="angle">0.000</span>
             </div>
-            <div class="info-item">
-                <label>Angular Velocity:</label>
+            <div class="info-item environment-specific" id="angular-velocity-item">
+                <label id="angular-velocity-label">Angular Velocity:</label>
                 <span id="angular-velocity">0.000</span>
             </div>
             <div class="info-item">
@@ -51,8 +55,8 @@
 
         <div class="visualization-panel">
             <div class="canvas-container">
-                <h3>Cart-Pole Simulation</h3>
-                <canvas id="cartpole-canvas"></canvas>
+                <h3 id="simulation-title">Environment Simulation</h3>
+                <canvas id="simulation-canvas"></canvas>
             </div>
             
             <div class="canvas-container">

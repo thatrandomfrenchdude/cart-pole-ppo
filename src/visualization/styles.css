@@ -59,6 +59,27 @@ h3 {
     font-weight: 700;
 }
 
+/* Environment-specific styling */
+.environment-specific.hidden {
+    display: none;
+}
+
+.cartpole-theme .info-item {
+    border-left-color: #3498db;
+}
+
+.mountain-car-theme .info-item {
+    border-left-color: #8e44ad;
+}
+
+.pendulum-theme .info-item {
+    border-left-color: #e67e22;
+}
+
+.acrobot-theme .info-item {
+    border-left-color: #16a085;
+}
+
 .info-item label {
     font-weight: 600;
     color: #2c3e50;

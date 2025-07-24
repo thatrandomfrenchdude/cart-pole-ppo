@@ -103,7 +103,8 @@ def training_loop(env, agent, simulation_speed, summary_frequency, update_freque
                             "angular_velocity": float(next_state[3]),
                             "reward": float(reward),
                             "episode": episode + 1,
-                            "timestep": timestep
+                            "timestep": timestep,
+                            "environment": "cartpole"
                         })
                     elif env_name == 'MountainCarEnv':
                         current_state.update({
@@ -113,7 +114,8 @@ def training_loop(env, agent, simulation_speed, summary_frequency, update_freque
                             "angular_velocity": 0.0,  # Not applicable
                             "reward": float(reward),
                             "episode": episode + 1,
-                            "timestep": timestep
+                            "timestep": timestep,
+                            "environment": "mountain_car"
                         })
                     elif env_name == 'PendulumEnv':
                         # next_state is [cos(theta), sin(theta), theta_dot]
@@ -125,7 +127,8 @@ def training_loop(env, agent, simulation_speed, summary_frequency, update_freque
                             "angular_velocity": float(next_state[2]),
                             "reward": float(reward),
                             "episode": episode + 1,
-                            "timestep": timestep
+                            "timestep": timestep,
+                            "environment": "pendulum"
                         })
                     elif env_name == 'AcrobotEnv':
                         # next_state is [theta1, theta2, theta1_dot, theta2_dot]
@@ -136,7 +139,8 @@ def training_loop(env, agent, simulation_speed, summary_frequency, update_freque
                             "angular_velocity": float(next_state[3]),  # Second joint velocity
                             "reward": float(reward),
                             "episode": episode + 1,
-                            "timestep": timestep
+                            "timestep": timestep,
+                            "environment": "acrobot"
                         })
                     else:
                         # Default handling
@@ -147,7 +151,8 @@ def training_loop(env, agent, simulation_speed, summary_frequency, update_freque
                             "angular_velocity": float(next_state[3]) if len(next_state) > 3 else 0.0,
                             "reward": float(reward),
                             "episode": episode + 1,
-                            "timestep": timestep
+                            "timestep": timestep,
+                            "environment": "cartpole"  # Default fallback
                         })
                 
                 episode_reward += reward
@@ -306,14 +311,58 @@ def example_mode_loop(env, agent, simulation_speed, example_model_path, current_
                 action, log_prob, value = example_agent.select_action(state)
                 next_state, reward, done = env.step(action)
                 
-                # Update current state for live visualization (keep these dynamic)
-                current_state.update({
-                    "position": float(next_state[0]),
-                    "velocity": float(next_state[1]),
-                    "angle": float(next_state[2]),
-                    "angular_velocity": float(next_state[3]),
-                    "timestep": total_timestep
-                })
+                # Update current state for live visualization with environment detection
+                if hasattr(env, '__class__'):
+                    env_name = env.__class__.__name__
+                    if env_name == 'CartPoleEnv':
+                        current_state.update({
+                            "position": float(next_state[0]),
+                            "velocity": float(next_state[1]),
+                            "angle": float(next_state[2]),
+                            "angular_velocity": float(next_state[3]),
+                            "timestep": total_timestep,
+                            "environment": "cartpole"
+                        })
+                    elif env_name == 'MountainCarEnv':
+                        current_state.update({
+                            "position": float(next_state[0]),
+                            "velocity": float(next_state[1]),
+                            "angle": 0.0,  # Not applicable
+                            "angular_velocity": 0.0,  # Not applicable
+                            "timestep": total_timestep,
+                            "environment": "mountain_car"
+                        })
+                    elif env_name == 'PendulumEnv':
+                        # next_state is [cos(theta), sin(theta), theta_dot]
+                        angle = np.arctan2(next_state[1], next_state[0])
+                        current_state.update({
+                            "position": 0.0,  # Not applicable
+                            "velocity": 0.0,  # Not applicable
+                            "angle": float(angle),
+                            "angular_velocity": float(next_state[2]),
+                            "timestep": total_timestep,
+                            "environment": "pendulum"
+                        })
+                    elif env_name == 'AcrobotEnv':
+                        # next_state is [theta1, theta2, theta1_dot, theta2_dot]
+                        current_state.update({
+                            "position": float(next_state[0]),  # First joint angle
+                            "velocity": float(next_state[2]),  # First joint velocity
+                            "angle": float(next_state[1]),     # Second joint angle
+                            "angular_velocity": float(next_state[3]),  # Second joint velocity
+                            "timestep": total_timestep,
+                            "environment": "acrobot"
+                        })
+                    else:
+                        # Default handling - assume CartPole-like for backward compatibility
+                        current_state.update({
+                            "position": float(next_state[0]) if len(next_state) > 0 else 0.0,
+                            "velocity": float(next_state[1]) if len(next_state) > 1 else 0.0,
+                            "angle": float(next_state[2]) if len(next_state) > 2 else 0.0,
+                            "angular_velocity": float(next_state[3]) if len(next_state) > 3 else 0.0,
+                            "timestep": total_timestep,
+                            "environment": "cartpole"  # Default fallback
+                        })
                 # Note: reward, episode are kept frozen from initialization
                 
                 episode_reward += reward
