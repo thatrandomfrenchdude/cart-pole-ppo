@@ -88,7 +88,11 @@ class ModelLoader:
             # Check if QNN provider is available
             available_providers = ort.get_available_providers()
             if 'QNNExecutionProvider' in available_providers:
+                qnn_backend_path = "C:\\Users\\debeu\\Tools\\qairt\\2.36.0.250627"
                 providers.append('QNNExecutionProvider')
+                # providers.append(('QNNExecutionProvider', {
+                #     'backend_path': qnn_backend_path
+                # }))
                 logger.info("QNN provider available for NPU acceleration")
         except:
             pass
