@@ -16,6 +16,7 @@ import os
 # Add parent directory to path to access src
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from src.network import PPONetwork
+from src.model_loader import ModelLoader
 
 def load_original_model():
     """Load the original PyTorch model from checkpoint"""
@@ -59,38 +60,22 @@ def load_torchscript_model():
     return predict
 
 def load_onnx_model():
-    """Load ONNX model"""
+    """Load ONNX model using ModelLoader with proper QNN configuration"""
     print("📦 Loading ONNX model (.onnx)...")
     
-    try:
-        import onnxruntime as ort
-        
-        # Try QNN provider first, fall back to CPU
-        providers = []
-        try:
-            # This will only work if onnxruntime-qnn is installed
-            providers.append('QNNExecutionProvider')
-        except:
-            pass
-        providers.append('CPUExecutionProvider')
-        
-        session = ort.InferenceSession('example/model.onnx', providers=providers)
-        input_name = session.get_inputs()[0].name
-        output_name = session.get_outputs()[0].name
-        
-        print(f"   Using providers: {session.get_providers()}")
-        
-        def predict(state):
-            """Predict using ONNX model"""
-            input_data = np.array(state, dtype=np.float32).reshape(1, -1)
-            outputs = session.run([output_name], {input_name: input_data})
-            return outputs[0][0]
-        
-        return predict
-        
-    except ImportError:
-        print("❌ ONNX Runtime not available. Install with: pip install onnxruntime")
+    predict_func, checkpoint = ModelLoader.load_onnx_model('example/model.onnx')
+    
+    if predict_func is None:
         return None
+    
+    def predict(state):
+        """Predict using ONNX model (wrapper for consistency)"""
+        action_probs, _ = predict_func(state)
+        if isinstance(action_probs, torch.Tensor):
+            return action_probs[0].numpy()
+        return action_probs
+    
+    return predict
 
 def benchmark_model(predict_func, name, num_runs=1000):
     """Benchmark a prediction function"""

@@ -82,20 +82,26 @@ class ModelLoader:
         
         logger.info(f"Loading ONNX model: {model_path}")
         
-        # Try QNN provider first, fall back to CPU
+        # Check available providers
+        available_providers = ort.get_available_providers()
+        logger.info(f"Available ONNX Runtime providers: {available_providers}")
+        
+        # Configure providers
         providers = []
-        try:
-            # Check if QNN provider is available
-            available_providers = ort.get_available_providers()
-            if 'QNNExecutionProvider' in available_providers:
-                qnn_backend_path = "C:\\Users\\debeu\\Tools\\qairt\\2.36.0.250627"
+        
+        # Try QNN provider first if available
+        if 'QNNExecutionProvider' in available_providers:
+            # Use simple QNN provider configuration (let it auto-detect the backend)
+            # This works best based on our diagnostics
+            try:
                 providers.append('QNNExecutionProvider')
-                # providers.append(('QNNExecutionProvider', {
-                #     'backend_path': qnn_backend_path
-                # }))
-                logger.info("QNN provider available for NPU acceleration")
-        except:
-            pass
+                logger.info("✅ QNN provider added for NPU acceleration (auto-detection mode)")
+            except Exception as e:
+                logger.warning(f"Failed to add QNN provider: {e}")
+        else:
+            logger.warning("⚠️ QNNExecutionProvider not available. Using CPU.")
+        
+        # Always add CPU as fallback
         providers.append('CPUExecutionProvider')
         
         try:
@@ -103,7 +109,17 @@ class ModelLoader:
             input_name = session.get_inputs()[0].name
             output_name = session.get_outputs()[0].name
             
-            logger.info(f"Using providers: {session.get_providers()}")
+            actual_providers = session.get_providers()
+            logger.info(f"Session created with providers: {actual_providers}")
+            
+            # Check if QNN is actually being used
+            if 'QNNExecutionProvider' in actual_providers:
+                logger.info("🚀 Successfully using QNN (NPU) acceleration!")
+            else:
+                logger.warning("⚠️ Falling back to CPU execution")
+            
+            # Print the actual providers being used
+            print(f"   ✅ Session providers: {actual_providers}")
             
             def predict(state):
                 """Predict using ONNX model"""
