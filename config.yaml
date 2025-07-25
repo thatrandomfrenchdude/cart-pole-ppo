@@ -2,7 +2,7 @@
 
 # Game Selection
 game:
-  environment: "mountain_car"               # Environment to play: "cartpole", "mountain_car", "pendulum", "acrobot"
+  environment: "acrobot"               # Environment to play: "cartpole", "mountain_car", "pendulum", "acrobot"
 
 # Environment Physics Parameters for CartPole
 environment:
