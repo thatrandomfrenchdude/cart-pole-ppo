@@ -70,16 +70,13 @@
         </div>
     </div>
 
-    <!-- Load base visualizer first -->
-    <script src="base-visualizer.js"></script>
+    <!-- Load environment-specific drawing functions -->
+    <script src="cartpole-draw.js"></script>
+    <script src="mountain-car-draw.js"></script>
+    <script src="pendulum-draw.js"></script>
+    <script src="acrobot-draw.js"></script>
     
-    <!-- Load environment-specific visualizers -->
-    <script src="cartpole-visualizer.js"></script>
-    <script src="mountain-car-visualizer.js"></script>
-    <script src="pendulum-visualizer.js"></script>
-    <script src="acrobot-visualizer.js"></script>
-    
-    <!-- Load main multi-environment visualizer last -->
-    <script src="multi-environment-visualizer.js"></script>
+    <!-- Load the main visualization script -->
+    <script src="visualization.js"></script>
 </body>
 </html>

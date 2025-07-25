@@ -26,6 +26,26 @@ def create_app(current_state, reward_history, episode_rewards):
         with open('src/visualization/visualization.js', 'r') as f:
             return f.read(), 200, {'Content-Type': 'application/javascript'}
 
+    @app.route('/cartpole-draw.js')
+    def cartpole_draw():
+        with open('src/visualization/cartpole-draw.js', 'r') as f:
+            return f.read(), 200, {'Content-Type': 'application/javascript'}
+
+    @app.route('/mountain-car-draw.js')
+    def mountain_car_draw():
+        with open('src/visualization/mountain-car-draw.js', 'r') as f:
+            return f.read(), 200, {'Content-Type': 'application/javascript'}
+
+    @app.route('/pendulum-draw.js')
+    def pendulum_draw():
+        with open('src/visualization/pendulum-draw.js', 'r') as f:
+            return f.read(), 200, {'Content-Type': 'application/javascript'}
+
+    @app.route('/acrobot-draw.js')
+    def acrobot_draw():
+        with open('src/visualization/acrobot-draw.js', 'r') as f:
+            return f.read(), 200, {'Content-Type': 'application/javascript'}
+
     @app.route('/state')
     def get_state():
         return jsonify(current_state)
