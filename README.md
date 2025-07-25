@@ -6,31 +6,7 @@
 
 This project demonstrates a complete reinforcement learning pipeline using Proximal Policy Optimization (PPO) across **four different physics-based environments**. It includes custom implementations of CartPole, MountainCar, Pendulum, and Acrobot environments, a PPO agent that supports both discrete and continuous actions, and a web-based visualization interface to observe training progress in real-time.
 
-## Supported Environments
-
-### 🤖 CartPole (Discrete Actions)
-- **Task**: Balance a pole on a moving cart by applying left/right forces
-- **State**: Cart position, cart velocity, pole angle, pole angular velocity (4D)
-- **Actions**: Left (0) or Right (1) force application
-- **Solved**: Average reward of 195+ over 100 episodes
-
-### 🏔️ Mountain Car (Discrete Actions)  
-- **Task**: Drive an underpowered car up a steep hill by building momentum
-- **State**: Car position, car velocity (2D)
-- **Actions**: Push left (-1), no action (0), or push right (+1)
-- **Solved**: Reach goal position in 110 steps or fewer
-
-### 🕰️ Pendulum (Continuous Actions)
-- **Task**: Swing a pendulum upright and keep it balanced using continuous torque
-- **State**: cos(θ), sin(θ), angular velocity (3D)
-- **Actions**: Continuous torque in range [-2, +2]
-- **Solved**: Minimize cost function (closer to 0 is better)
-
-### 🤸 Acrobot (Discrete Actions)
-- **Task**: Swing a two-link underactuated pendulum to reach a target height
-- **State**: Joint angles θ₁, θ₂ and angular velocities (4D)  
-- **Actions**: Apply torque {-1, 0, +1} to the second joint only
-- **Solved**: Reach target height in 100 steps or fewer
+The application allows you to run a pre-trained model in example mode, or train a new model from scratch. It supports multiple model formats including PyTorch, TorchScript, and ONNX, making it flexible for different deployment scenarios. I've also built in a conversion script to convert PyTorch models to ONNX format for use with Qualcomm AI Hub, enabling NPU acceleration on Snapdragon devices.
 
 ## Table of Contents
 - [Supported Environments](#supported-environments)
@@ -45,6 +21,40 @@ This project demonstrates a complete reinforcement learning pipeline using Proxi
    - [Project Layout](#project-layout)
    - [Testing](#testing)
 - [License](#license)
+
+## Supported Environments
+
+### 🤖 CartPole (Discrete Actions)
+- **Task**: Balance a pole on a moving cart by applying left/right forces
+- **State**: Cart position, cart velocity, pole angle, pole angular velocity (4D)
+- **Actions**: Left (0) or Right (1) force application (±10N)
+- **Episode termination**: Cart position exceeds ±2.4m or pole angle exceeds ±12°
+- **Reward**: +1.0 for each step balanced, 0.0 when episode ends
+- **Solved**: Average reward of 195+ over 100 consecutive episodes
+
+### 🏔️ Mountain Car (Continuous Actions)
+- **Task**: Drive an underpowered car up a steep hill by building momentum
+- **State**: Car position, car velocity (2D)
+- **Actions**: Continuous force in range [-1, +1] (scaled internally)
+- **Episode termination**: Goal reached (position ≥ 0.45) or 999 steps elapsed
+- **Reward**: -0.1×action² per step, +100 bonus for reaching goal
+- **Solved**: Average reward of 90+ over 100 consecutive episodes
+
+### 🕰️ Pendulum (Continuous Actions)
+- **Task**: Swing a pendulum upright and keep it balanced using continuous torque
+- **State**: cos(θ), sin(θ), angular velocity (3D)
+- **Actions**: Continuous torque in range [-1, +1] (scaled to ±2.0 max torque)
+- **Episode termination**: Fixed horizon of 200 steps
+- **Reward**: -θ² - 0.1×θ̇² - 0.001×u² per step (minimize cost)
+- **Solved**: Average reward of -200+ over 100 consecutive episodes
+
+### 🤸 Acrobot (Discrete Actions)
+- **Task**: Swing a two-link underactuated pendulum to get the end-effector above the first joint level
+- **State**: Joint angles θ₁, θ₂ and angular velocities (4D)  
+- **Actions**: Apply torque {-1, 0, +1} to the second joint only
+- **Episode termination**: End-effector height reaches above first joint level or 500 steps elapsed
+- **Reward**: -1.0 per step until goal reached, 0.0 when goal achieved
+- **Solved**: Average reward of -100+ over 100 consecutive episodes
 
 ## Quick Start
 By default, the application runs a pretrained CartPole model in **example mode**. You'll see a real-time simulation with live metrics demonstrating "perfect" balancing behavior without requiring training time.
@@ -182,8 +192,8 @@ The implementation includes:
 
 1. **Environment Reset**: Start new episode with random initial state
 2. **Action Selection**: 
-   - **Discrete environments**: Policy network chooses actions via categorical distribution
-   - **Continuous environments**: Policy network outputs mean and std for normal distribution
+   - **Discrete environments (CartPole, Acrobot)**: Policy network outputs action probabilities via categorical distribution
+   - **Continuous environments (MountainCar, Pendulum)**: Policy network outputs mean and std for normal distribution, actions clipped to [-1, +1] range
 3. **Experience Collection**: Store states, actions, rewards, and probabilities
 4. **Policy Updates**: Every 200 steps, update the policy using PPO loss
 5. **Performance Tracking**: Log episode rewards and training statistics
@@ -191,12 +201,16 @@ The implementation includes:
 #### Performance Expectations
 
 Each environment has different solving criteria:
-- **CartPole**: Average reward of 195+ over 100 consecutive episodes
-- **MountainCar**: Reach goal in 110 steps or fewer on average
-- **Pendulum**: Minimize cost function (continuous episodes, no termination)
-- **Acrobot**: Reach target height in 100 steps or fewer on average
+- **CartPole**: Average reward of 195+ over 100 consecutive episodes (max possible: 200+ per episode)
+- **MountainCar**: Average reward of 90+ over 100 consecutive episodes (considers goal bonus minus energy costs)
+- **Pendulum**: Average reward of -200+ over 100 consecutive episodes (minimize cost function - closer to 0 is better)
+- **Acrobot**: Average reward of -100+ over 100 consecutive episodes (fewer negative steps to lift end-effector above first joint)
 
-Training typically shows improvement within the first few episodes. Complete learning usually occurs within 100-500 episodes depending on environment complexity and initialization.
+Training typically shows improvement within the first few episodes. Complete learning usually occurs within 100-500 episodes depending on environment complexity and initialization. Episodes have the following horizons:
+- **CartPole**: Variable length (terminates when pole falls or cart goes out of bounds)
+- **MountainCar**: Maximum 999 steps (terminates early if goal reached)
+- **Pendulum**: Fixed 200 steps per episode
+- **Acrobot**: Maximum 500 steps (terminates early if end-effector raised above first joint level)
 
 ### Customization with the Configuration File
 The [`config.yaml`](config.yaml) file allows you to customize all aspects of training. There are sections for environment parameters, neural network architecture, PPO hyperparameters, training settings, server configuration, and logging.
@@ -247,9 +261,9 @@ ppo:
 training:
   solved_reward_thresholds:
     cartpole: 195.0                     # CartPole: average reward of 195+ over 100 episodes
-    mountain_car: -110.0                # MountainCar: reach goal in ~110 steps or fewer
+    mountain_car: 90.0                  # MountainCar: average reward of 90+ (goal bonus - energy costs)
     pendulum: -200.0                    # Pendulum: minimize cost (closer to 0 is better)
-    acrobot: -100.0                     # Acrobot: reach target height quickly
+    acrobot: -100.0                     # Acrobot: reach target height quickly (lift end-effector above first joint)
 ```
 
 ## Developer Notes

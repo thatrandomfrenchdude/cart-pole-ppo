@@ -70,6 +70,16 @@
         </div>
     </div>
 
-    <script src="visualization.js"></script>
+    <!-- Load base visualizer first -->
+    <script src="base-visualizer.js"></script>
+    
+    <!-- Load environment-specific visualizers -->
+    <script src="cartpole-visualizer.js"></script>
+    <script src="mountain-car-visualizer.js"></script>
+    <script src="pendulum-visualizer.js"></script>
+    <script src="acrobot-visualizer.js"></script>
+    
+    <!-- Load main multi-environment visualizer last -->
+    <script src="multi-environment-visualizer.js"></script>
 </body>
 </html>

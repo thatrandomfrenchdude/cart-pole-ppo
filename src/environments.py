@@ -264,8 +264,9 @@ class AcrobotEnv:
         self.tau = env_config['time_step']
         self.gravity = env_config['gravity']
         
-        # Goal: reach height threshold (end of link 2 above certain height)
-        self.goal_height = self.LINK_LENGTH_1 + self.LINK_LENGTH_2 - 0.05
+        # Goal: reach height threshold (end-effector above first joint level)
+        # Standard Acrobot goal: get end-effector above the level of the first joint
+        self.goal_height = self.LINK_LENGTH_1
         
         self.step_count = 0
         self.max_steps = 500  # Episode horizon
