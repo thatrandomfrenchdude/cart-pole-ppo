@@ -194,9 +194,9 @@ class PendulumEnv:
         self.reset()
     
     def reset(self):
-        # Random initial angle and angular velocity
-        theta = np.random.uniform(low=-np.pi, high=np.pi)
-        theta_dot = np.random.uniform(low=-1, high=1)
+        # Start hanging down with small random perturbations
+        theta = np.pi + np.random.uniform(low=-0.1, high=0.1)  # Start near hanging down position
+        theta_dot = np.random.uniform(low=-0.1, high=0.1)  # Small initial velocity
         self.state = np.array([theta, theta_dot])
         self.step_count = 0
         return self._get_obs()
@@ -235,9 +235,25 @@ class PendulumEnv:
         self.state = np.array([theta_new, theta_dot_new])
         self.step_count += 1
         
-        # Reward function according to specification:
-        # reward = -θ² - 0.1*θ̇² - 0.001*u²
-        reward = -(theta_new ** 2) - 0.1 * (theta_dot_new ** 2) - 0.001 * (u ** 2)
+        # New reward function based on angle relative to upright position
+        # Upright position: theta = 0 (reward = 1)
+        # Hanging down: theta = ±π (reward = -1)
+        # Continuous reward function that increases as pendulum moves towards upright
+        
+        # Calculate angle distance from upright (0) position
+        angle_from_upright = abs(theta_new)
+        
+        # Use cosine to create smooth transition: cos(0) = 1, cos(π) = -1
+        position_reward = np.cos(angle_from_upright)
+        
+        # Add small penalty for high angular velocity to encourage stability
+        velocity_penalty = -0.01 * (theta_dot_new ** 2)
+        
+        # Add small penalty for large control actions to encourage efficiency
+        control_penalty = -0.001 * (u ** 2)
+        
+        # Total reward
+        reward = position_reward + velocity_penalty + control_penalty
         
         # Episodes run for fixed horizon
         done = bool(self.step_count >= self.max_steps)

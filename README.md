@@ -40,13 +40,17 @@ The application allows you to run a pre-trained model in example mode, or train 
 - **Reward**: -0.1×action² per step, +100 bonus for reaching goal
 - **Solved**: Average reward of 90+ over 100 consecutive episodes
 
-### 🕰️ Pendulum (Continuous Actions)
-- **Task**: Swing a pendulum upright and keep it balanced using continuous torque
+### 🕰️ Pendulum (Continuous Actions) - **MODIFIED**
+- **Task**: Swing a pendulum upright from hanging position using continuous torque
 - **State**: cos(θ), sin(θ), angular velocity (3D)
 - **Actions**: Continuous torque in range [-1, +1] (scaled to ±2.0 max torque)
 - **Episode termination**: Fixed horizon of 200 steps
-- **Reward**: -θ² - 0.1×θ̇² - 0.001×u² per step (minimize cost)
-- **Solved**: Average reward of -200+ over 100 consecutive episodes
+- **Starting position**: Hanging down (θ ≈ π) with small random perturbations
+- **Reward**: cos(|θ|) - 0.01×θ̇² - 0.001×u² per step (maximize position reward)
+  - Maximum reward (+1.0) when upright (θ = 0)
+  - Minimum reward (-1.0) when hanging down (θ = ±π)
+  - Smooth continuous increase in either direction toward upright
+- **Solved**: Average reward of 0.8+ over 100 consecutive episodes
 
 ### 🤸 Acrobot (Discrete Actions)
 - **Task**: Swing a two-link underactuated pendulum to get the end-effector above the first joint level

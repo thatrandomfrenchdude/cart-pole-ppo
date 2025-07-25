@@ -92,9 +92,18 @@ function drawPendulum(ctx, canvas, state) {
         ctx.fill();
     }
     
-    // Show reward zones visualization
-    const currentCost = angle * angle + 0.1 * state.angular_velocity * state.angular_velocity;
-    ctx.fillStyle = `rgba(231, 76, 60, ${Math.min(currentCost / 10, 0.8)})`;
+    // Show reward visualization
+    const angleFromUpright = Math.abs(angle);
+    const positionReward = Math.cos(angleFromUpright);
+    const velocityPenalty = -0.01 * state.angular_velocity * state.angular_velocity;
+    
+    // Color bob based on reward: green for positive (good), red for negative (bad)
+    const rewardIntensity = Math.abs(positionReward);
+    if (positionReward >= 0) {
+        ctx.fillStyle = `rgba(39, 174, 96, ${rewardIntensity})`;  // Green for positive reward
+    } else {
+        ctx.fillStyle = `rgba(231, 76, 60, ${rewardIntensity})`;  // Red for negative reward
+    }
     ctx.beginPath();
     ctx.arc(bobX, bobY, 20, 0, 2 * Math.PI);
     ctx.fill();
@@ -106,13 +115,13 @@ function drawPendulum(ctx, canvas, state) {
     ctx.fillText(`θ = ${(angle * 180 / Math.PI).toFixed(1)}°`, centerX, 30);
     ctx.fillText(`ω = ${state.angular_velocity.toFixed(2)} rad/s`, centerX, 50);
     
-    // Show cost components
-    const angleCost = angle * angle;
-    const velocityCost = 0.1 * state.angular_velocity * state.angular_velocity;
+    // Show reward components
+    const totalReward = positionReward + velocityPenalty;
+    
     ctx.font = '12px Arial';
-    ctx.fillText(`Angle Cost: ${angleCost.toFixed(3)}`, centerX, canvas.height - 60);
-    ctx.fillText(`Velocity Cost: ${velocityCost.toFixed(3)}`, centerX, canvas.height - 40);
-    ctx.fillText(`Total Cost: ${(angleCost + velocityCost).toFixed(3)}`, centerX, canvas.height - 20);
+    ctx.fillText(`Position Reward: ${positionReward.toFixed(3)}`, centerX, canvas.height - 60);
+    ctx.fillText(`Velocity Penalty: ${velocityPenalty.toFixed(3)}`, centerX, canvas.height - 40);
+    ctx.fillText(`Total Reward: ${totalReward.toFixed(3)}`, centerX, canvas.height - 20);
     
     // Target label
     ctx.fillText('TARGET', targetX, targetY - 20);

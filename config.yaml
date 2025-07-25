@@ -2,7 +2,7 @@
 
 # Game Selection
 game:
-  environment: "acrobot"               # Environment to play: "cartpole", "mountain_car", "pendulum", "acrobot"
+  environment: "pendulum"               # Environment to play: "cartpole", "mountain_car", "pendulum", "acrobot"
 
 # Environment Physics Parameters for CartPole
 environment:
@@ -91,7 +91,7 @@ training:
   solved_reward_thresholds:
     cartpole: 195.0                     # CartPole: average reward of 195+ over 100 episodes
     mountain_car: 90.0                  # MountainCar: average reward of 90+ (goal bonus - energy costs)
-    pendulum: -200.0                    # Pendulum: minimize cost (closer to 0 is better)
+    pendulum: 0.8                       # Pendulum: maximize reward (1.0 is upright, -1.0 is hanging)
     acrobot: -100.0                     # Acrobot: reach target height quickly
   
   solved_episodes_window: 100           # Number of consecutive episodes to average for solving criteria
