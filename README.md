@@ -51,6 +51,11 @@ The application allows you to run a pre-trained model in example mode, or train 
   - Minimum reward (-1.0) when hanging down (θ = ±π)
   - Smooth continuous increase in either direction toward upright
 - **Solved**: Average reward of 0.8+ over 100 consecutive episodes
+- **Recommended Settings**: 
+  - `ppo`:
+      - `learning_rate`: 0.0001
+      - `clip_ratio`: 0.1
+      - `update_frequency`: 100
 
 ### 🤸 Acrobot (Discrete Actions)
 - **Task**: Swing a two-link underactuated pendulum to get the end-effector above the first joint level

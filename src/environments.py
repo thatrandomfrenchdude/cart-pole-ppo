@@ -235,7 +235,7 @@ class PendulumEnv:
         self.state = np.array([theta_new, theta_dot_new])
         self.step_count += 1
         
-        # New reward function based on angle relative to upright position
+        # Enhanced reward function with swing-up bonus
         # Upright position: theta = 0 (reward = 1)
         # Hanging down: theta = ±π (reward = -1)
         # Continuous reward function that increases as pendulum moves towards upright
@@ -243,17 +243,22 @@ class PendulumEnv:
         # Calculate angle distance from upright (0) position
         angle_from_upright = abs(theta_new)
         
-        # Use cosine to create smooth transition: cos(0) = 1, cos(π) = -1
+        # Position reward using cosine: cos(0) = 1, cos(π) = -1
         position_reward = np.cos(angle_from_upright)
         
-        # Add small penalty for high angular velocity to encourage stability
-        velocity_penalty = -0.01 * (theta_dot_new ** 2)
+        # Add energy bonus for gaining height (encourages swing-up)
+        height = np.cos(theta_new)  # Height of pendulum bob (positive = up, negative = down)
+        prev_height = np.cos(theta)  # Previous height
+        height_gain_bonus = 2.0 * max(0, height - prev_height)
         
-        # Add small penalty for large control actions to encourage efficiency
+        # Velocity penalty (reduced to allow faster swings)
+        velocity_penalty = -0.005 * (theta_dot_new ** 2)
+        
+        # Control penalty for large control actions
         control_penalty = -0.001 * (u ** 2)
         
-        # Total reward
-        reward = position_reward + velocity_penalty + control_penalty
+        # Total reward with swing-up incentive
+        reward = position_reward + height_gain_bonus + velocity_penalty + control_penalty
         
         # Episodes run for fixed horizon
         done = bool(self.step_count >= self.max_steps)

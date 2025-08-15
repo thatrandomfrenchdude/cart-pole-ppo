@@ -116,12 +116,17 @@ function drawPendulum(ctx, canvas, state) {
     ctx.fillText(`ω = ${state.angular_velocity.toFixed(2)} rad/s`, centerX, 50);
     
     // Show reward components
-    const totalReward = positionReward + velocityPenalty;
+    const height = Math.cos(angle);  // Corrected height calculation
+    const prevHeight = state.prev_height || height; // Fallback if prev_height not provided
+    const heightGainBonus = 2.0 * Math.max(0, height - prevHeight);
+    const controlPenalty = -0.001 * (state.torque || 0) * (state.torque || 0);
+    const totalReward = positionReward + heightGainBonus + velocityPenalty + controlPenalty;
     
     ctx.font = '12px Arial';
-    ctx.fillText(`Position Reward: ${positionReward.toFixed(3)}`, centerX, canvas.height - 60);
-    ctx.fillText(`Velocity Penalty: ${velocityPenalty.toFixed(3)}`, centerX, canvas.height - 40);
-    ctx.fillText(`Total Reward: ${totalReward.toFixed(3)}`, centerX, canvas.height - 20);
+    ctx.fillText(`Position: ${positionReward.toFixed(3)}`, centerX, canvas.height - 80);
+    ctx.fillText(`Height Bonus: ${heightGainBonus.toFixed(3)}`, centerX, canvas.height - 60);
+    ctx.fillText(`Velocity: ${velocityPenalty.toFixed(3)}`, centerX, canvas.height - 40);
+    ctx.fillText(`Total: ${totalReward.toFixed(3)}`, centerX, canvas.height - 20);
     
     // Target label
     ctx.fillText('TARGET', targetX, targetY - 20);
