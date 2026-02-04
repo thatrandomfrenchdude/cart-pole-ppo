@@ -15,6 +15,18 @@ body {
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
+.mode-banner {
+    background-color: #fff4cc;
+    color: #5d4a00;
+    border: 1px solid #f0d98a;
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    text-align: center;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
 h1 {
     text-align: center;
     color: #2c3e50;
