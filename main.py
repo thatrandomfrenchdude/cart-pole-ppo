@@ -24,7 +24,16 @@ def main():
     example_mode = config['training'].get('example_mode', False)
     
     # Global variables for Flask endpoints and shared state
-    current_state = {"position": 0, "velocity": 0, "angle": 0, "angular_velocity": 0, "reward": 0, "episode": 0, "timestep": 0}
+    current_state = {
+        "position": 0,
+        "velocity": 0,
+        "angle": 0,
+        "angular_velocity": 0,
+        "reward": 0,
+        "episode": 0,
+        "timestep": 0,
+        "example_mode": bool(example_mode),
+    }
     reward_history = deque(maxlen=1000)  # Default maxlen, will be updated in main
     episode_rewards = deque(maxlen=100)  # Default maxlen, will be updated in main
     running_flag = {'value': True}  # Use dict so it's mutable and shared

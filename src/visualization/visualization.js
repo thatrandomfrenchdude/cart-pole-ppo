@@ -252,6 +252,15 @@ class CartPoleVisualizer {
     }
     
     updateDisplay(data) {
+        const banner = document.getElementById('example-mode-banner');
+        if (banner) {
+            if (data.example_mode === true) {
+                banner.style.display = 'block';
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
         // Update info panel
         document.getElementById('episode').textContent = data.episode || 0;
         document.getElementById('timestep').textContent = data.timestep || 0;
